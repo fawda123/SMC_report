@@ -12,7 +12,10 @@ self_contained: yes
 3.	The new index is complementary to the CSCI [demonstrate agreement, and/or insightful disagreements]
 
 ```{r}
-
+data(mmdat)
+data(oedat)
+data(evdat)
+data(sheds)
 
 ```
 
