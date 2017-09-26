@@ -25,7 +25,8 @@ fls <- list.files('ignore', pattern = '\\.csv$', full.names = TRUE) %>%
 evdat <- fls %>% 
   filter(grepl('algSiteData', fl)) %>% 
   unnest %>% 
-  rename(site = SampleID_old)
+  rename(id = SampleID_old) %>% 
+  mutate(site = gsub('_[0-9]+\\..*$', '', id))
 
 # latlon, clip by sheds
 latlon <- evdat %>% 
@@ -46,81 +47,87 @@ evdat <- evdat %>%
 oedat <- fls %>% 
   filter(grepl('Scores', fl)) %>% 
   unnest %>% 
-  # filter(!Type %in% 'notrecent') %>% # do we need this?
+  filter(!Type %in% 'notrecent') %>%
+  rename(
+    id = X,
+    scr = OoverE
+    ) %>% 
   mutate(
     fl = gsub('^ignore/|\\.Scores.*$', '', fl),
     type = factor(Type),
-    type = fct_collapse(type, ref = c('notrecent', 'rc', 'rv')), # what to do with these types?
-    scr = OoverE, 
-    ind = 'oe'
+    type = fct_collapse(type, ref = c('rc', 'rv')),
+    ind = 'oe', 
+    site = gsub('_[0-9]+\\..*$', '', id)
   ) %>% 
-  rename(site = X) %>% 
-  dplyr::select(fl, site, type, scr) %>% 
-  left_join(latlon, ., by = 'site')
+  dplyr::select(fl, site, id, type, ind, scr) %>% 
+  inner_join(latlon, ., by = 'site') 
 
 # MMI data
 mmdat <- fls %>% 
   filter(grepl('metrics', fl)) %>% 
   unnest %>% 
+  rename(
+    id = X,
+    scr = Means
+    ) %>% 
   mutate(
     fl = gsub('^ignore/|\\.combined.*$', '', fl), 
     type = factor(Type, levels = c('ref', 'int', 'str')), 
-    ind = 'mmi'
+    ind = 'mmi', 
+    site = gsub('_[0-9]+\\..*$', '', id)
   ) %>% 
-  rename
-  rename(site = X) %>% 
-  left_join(latlon, ., by = 'site') %>% 
-  na.omit
+  dplyr::select(fl, site, id, type, ind, scr) %>% 
+  inner_join(latlon, ., by = 'site') 
+
+# combine mmdat, oedat
+indat <- rbind(mmdat, oedat)
 
 ##
 # get channel type
-
-# site/key lookup
-kydat <- read.csv('ignore/luStation.txt', stringsAsFactors = FALSE) %>% 
-  dplyr::select(StationID, MasterID) %>% 
-  rename(
-    sitetmp = MasterID, 
-    stationcode = StationID
-    )
 
 # rafi's channel data
 chdat <- read.csv('ignore/csci.alg.df.csv', stringsAsFactors = FALSE) %>%
   dplyr::select(StationCode, ChannelClass_3hf) %>%
   rename(
     chcls = ChannelClass_3hf, 
-    stationcode = StationCode
-    ) %>%
-  left_join(kydat, by = 'stationcode') %>%
-  dplyr::select(sitetmp, chcls)
+    site = StationCode
+    )
 
-# # channel data
-# chdat <- read.csv('ignore/tblChannelEngineering.txt', stringsAsFactors = FALSE) %>%
-#   dplyr::select(stationcode, channeltype) %>%
-#   rename(chcls = channeltype) %>%
-#   left_join(kydat, by = 'stationcode') %>%
-#   dplyr::select(sitetmp, chcls)
-
-# add chdat to mmdat
-mmdat <- mmdat %>% 
-  mutate(
-    sitetmp = gsub('_[0-9]+\\..*$', '', site)
+# add chdat to indat, final formatting
+indat <- indat %>% 
+  left_join(chdat, by = 'site') %>% 
+  rename(
+    lat = New_Lat, 
+    lon = New_Long, 
+    tax = fl
   ) %>% 
-  left_join(chdat, by = 'sitetmp') %>% 
-  dplyr::select(-sitetmp)
-
-# add chdat to oedat
-oedat <- oedat %>% 
   mutate(
-    sitetmp = gsub('_[0-9]+\\..*$', '', site)
+    tax = factor(tax, 
+                 levels = c('diatoms', 'sba', 'hybrid'), 
+                 labels = c('Diatom', 'Soft-bodied', 'Hybrid')
+                 ), 
+    ind = factor(ind,
+                 levels = c('oe', 'mmi'), 
+                 labels = c('O/E', 'pMMI')
+                 ), 
+    type = factor(type, 
+                  levels = c('ref', 'int', 'str'),
+                  labels = c('Reference', 'Intermediate', 'Stressed')
+                  )
   ) %>% 
-  left_join(chdat, by = 'sitetmp') %>% 
-  dplyr::select(-sitetmp)
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr)
+
+# add smc shed names to indat
+coordinates(indat) <- indat[, c('lon', 'lat')]
+crs(indat) <- CRS(prstr)
+indat <- raster::intersect(indat, sheds) %>%
+  data.frame %>%
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, SMC_Name)
 
 ##
 # save 
 
-save(mmdat, file = 'data/mmdat.RData', compress = 'xz')
+save(indat, file = 'data/indat.RData', compress = 'xz')
 save(evdat, file = 'data/evdat.RData', compress = 'xz')
-save(oedat, file = 'data/oedat.RData', compress = 'xz')
 save(sheds, file = 'data/sheds.RData', compress = 'xz')
 
