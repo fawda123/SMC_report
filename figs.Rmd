@@ -13,6 +13,7 @@ library(knitr)
 opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+Graphics should demonsrate:
 1.	The new index works. [Demonstrate basic performance parameters, like lack of bias within reference sites, and good responsiveness to a few stressor gradients]
 2.	The new index makes our region (or watersheds/land use classes) look good/bad [calculate extent of stream-miles in good/bad classes, based on reference percentiles; compare to results from earlier algae IBIs]
 3.	The new index is complementary to the CSCI [demonstrate agreement, and/or insightful disagreements]
@@ -26,6 +27,7 @@ library(rgeos)
 library(sp)
 library(raster)
 library(gridExtra)
+library(micromap)
 
 # data
 data(indat)
@@ -52,7 +54,7 @@ ggplot(indat, aes(x = type, y = scr)) +
 
 ```{r bar, fig.height = 8, fig.width = 8}
 # colors
-colfun <- RColorBrewer::brewer.pal(3, 'Spectral') %>% 
+colfun <- rev(tycol) %>% 
   colorRampPalette
 
 # format for plots
@@ -143,10 +145,97 @@ ggplot() +
     # axis.text.y = element_text(size = 7), 
     axis.title.y = element_blank(), 
     axis.title.x = element_blank(),
-    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)#,
-    # legend.position = 'top'#,  
-    # panel.grid.minor = element_blank(), 
-    # panel.grid.major = element_blank()
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)
   )
 ```
 
+```{r micro1, fig.height = 6, fig.width = 7.5}
+# prep indat for micromap
+# merge with some evdat variable
+
+evvar <- 'OrthoPhosphate_as_P_mgPerL'
+invar <- 'pMMI'
+txvar <- 'Soft-bodied'
+
+# subset and summarize data by inputs
+toplo <- evdat[, c('id', evvar)]
+names(toplo)[names(toplo) %in% evvar] <- 'evvar'
+toplo <- toplo %>% 
+  left_join(indat, ., by = 'id') %>% 
+  filter(ind %in% invar & tax %in% txvar) %>% 
+  group_by(SMC_Name) %>% 
+  summarise(
+    scr = mean(scr, na.rm = TRUE), 
+    evvar = mean(evvar, na.rm = TRUE)
+  ) %>% 
+  ungroup %>% 
+  as.data.frame
+  
+
+# create map table for polygons
+polys <- create_map_table(sheds, 'SMC_Name')
+
+# plot
+mmplot(stat.data = toplo,
+  map.data = polys,
+  panel.types = c('labels', 'dot', 'dot', 'map'),
+  panel.data = list('SMC_Name', 'scr', 'evvar', NA), 
+  grouping = 5,
+  ord.by = 'scr',  
+  median.row = F,
+  colors = rev(tycol), 
+  map.link = c('SMC_Name', 'ID'),
+  panel.att = list(
+      list(1, header = 'SMC watershed', text.size = 0.6),
+      list(2, header = paste(invar, txvar, sep = ', ')),
+      list(3, header = 'Orthophosphate')
+    ),
+  plot.panel.spacing = 0
+  )
+
+```
+```{r micro2, fig.height = 6, fig.width = 7.5}
+# prep indat for micromap
+# merge with some evdat variable
+
+evvar <- 'Ammonia_as_N_mgPerL'
+invar <- 'pMMI'
+txvar <- 'Soft-bodied'
+
+# subset and summarize data by inputs
+toplo <- evdat[, c('id', evvar)]
+names(toplo)[names(toplo) %in% evvar] <- 'evvar'
+toplo <- toplo %>% 
+  left_join(indat, ., by = 'id') %>% 
+  filter(ind %in% invar & tax %in% txvar) %>% 
+  group_by(SMC_Name) %>% 
+  summarise(
+    scr = mean(scr, na.rm = TRUE), 
+    evvar = mean(evvar, na.rm = TRUE)
+  ) %>% 
+  ungroup %>% 
+  as.data.frame
+  
+
+# create map table for polygons
+polys <- create_map_table(sheds, 'SMC_Name')
+
+# plot
+mmplot(stat.data = toplo,
+  map.data = polys,
+  panel.types = c('labels', 'dot', 'dot', 'map'),
+  panel.data = list('SMC_Name', 'scr', 'evvar', NA), 
+  grouping = 5,
+  ord.by = 'scr',  
+  median.row = F,
+  colors = rev(tycol), 
+  map.link = c('SMC_Name', 'ID'),
+  panel.att = list(
+      list(1, header = 'SMC watershed', text.size = 0.6),
+      list(2, header = paste(invar, txvar, sep = ', ')),
+      list(3, header = 'Ammonium')
+    ),
+  plot.panel.spacing = 0
+  )
+
+```
