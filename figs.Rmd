@@ -3,6 +3,7 @@ title: "Figures"
 author: "Marcus Beck"
 output: 
   html_document:
+    code_folding: hide
   toc: yes
 self_contained: yes
 ---
@@ -12,7 +13,6 @@ library(knitr)
 opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
-
 1.	The new index works. [Demonstrate basic performance parameters, like lack of bias within reference sites, and good responsiveness to a few stressor gradients]
 2.	The new index makes our region (or watersheds/land use classes) look good/bad [calculate extent of stream-miles in good/bad classes, based on reference percentiles; compare to results from earlier algae IBIs]
 3.	The new index is complementary to the CSCI [demonstrate agreement, and/or insightful disagreements]
@@ -20,10 +20,12 @@ opts_chunk$set(warning = FALSE, message = FALSE)
 ```{r}
 # libraries
 library(tidyverse)
+library(broom)
 library(rgdal)
 library(rgeos)
 library(sp)
 library(raster)
+library(gridExtra)
 
 # data
 data(indat)
@@ -31,11 +33,11 @@ data(evdat)
 data(sheds)
 ```
 
-```{r, fig.height = 5, fig.width = 9}
+```{r box, fig.height = 5, fig.width = 9}
 tycol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
   rev
 ggplot(indat, aes(x = type, y = scr)) + 
-  geom_boxplot(outlier.size = 1, aes(fill = type)) + 
+  geom_boxplot(outlier.size = 1, aes(fill = type), alpha = 0.7) + 
   facet_grid(ind ~ tax) +
   scale_fill_manual(values = tycol) +
   scale_y_continuous('Index Score') + 
@@ -46,5 +48,105 @@ ggplot(indat, aes(x = type, y = scr)) +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
     legend.position = 'none'
   ) 
+```
+
+```{r bar, fig.height = 8, fig.width = 8}
+# colors
+colfun <- RColorBrewer::brewer.pal(3, 'Spectral') %>% 
+  colorRampPalette
+
+# format for plots
+toplo <- indat %>% 
+  group_by(ind, tax, SMC_Name) %>% 
+  summarise(
+    mnval = mean(scr), 
+    loval = confint(lm(scr ~ 1))[1],
+    hival = confint(lm(scr ~ 1))[2]
+  ) %>% 
+  ungroup %>% 
+  mutate(
+    cols = colfun(length(mnval))[rank(mnval)]
+  ) %>% 
+  split(., .[, c('ind', 'tax')])
+
+# arrange each barplot separately
+for(i in seq_along(names(toplo))){
+  
+  tmp <- toplo[[i]] %>% 
+    arrange(mnval) %>% 
+    mutate(SMC_Name = factor(SMC_Name, levels = SMC_Name))
+  
+  p <- ggplot(tmp, aes(x = SMC_Name, y = mnval)) + 
+    geom_bar(stat = 'identity', fill = tmp$cols, col = 'grey') +
+    geom_errorbar(aes(ymin = loval, ymax = hival), width = 0.2) +
+    facet_wrap(ind ~ tax) +
+    scale_y_continuous('Index Score', expand = c(0, 0), limits = c(0, 1.1)) + 
+    coord_flip() + 
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 7), 
+      axis.title.y = element_blank(), 
+      axis.title.x = element_blank(),
+      panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+      legend.position = 'none', 
+      panel.grid.minor = element_blank(), 
+      panel.grid.major = element_blank()
+    ) 
+  p <- ggplot_gtable(ggplot_build(p))
+  
+  assign(paste0('p', i), p) 
+  
+}
+
+# Get the widths
+maxWidth = grid::unit.pmax(p1$widths[2:3], p2$widths[2:3], p3$widths[2:3], p4$widths[2:3], p5$widths[2:3], p6$widths[2:3])
+
+# Set the widths
+p1$widths[2:3] <- maxWidth
+p2$widths[2:3] <- maxWidth
+p3$widths[2:3] <- maxWidth
+p4$widths[2:3] <- maxWidth
+p5$widths[2:3] <- maxWidth
+p6$widths[2:3] <- maxWidth
+
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 2, bottom = 'Index Score')
+
+```
+
+```{r chloro, fig.height = 8, fig.width = 9}
+# add shc shed names to fortified shapefile
+key <- sheds@data %>% 
+  rownames_to_column('id') %>% 
+  dplyr::select(id, SMC_Name)
+shd <- tidy(sheds) %>% 
+  left_join(key, by = 'id')
+
+# merge summarized data with fortified shapefile
+toplo <- indat %>% 
+  group_by(ind, tax, SMC_Name) %>% 
+  summarise(
+    mnval = mean(scr)
+  ) %>%
+  left_join(shd, ., by = 'SMC_Name') %>% 
+  rename(`Ave index\nscore` = mnval)
+
+ggplot() + 
+  geom_polygon(data = toplo, 
+               aes(x = long, y = lat, fill = `Ave index\nscore`, group = group), 
+               colour = 'gray', alpha = 0.8
+               ) + 
+  facet_wrap(tax ~ ind, ncol = 2) + 
+  coord_map() + 
+  scale_fill_gradientn(colors = rev(tycol)) + 
+  theme_minimal() +
+  theme(
+    # axis.text.y = element_text(size = 7), 
+    axis.title.y = element_blank(), 
+    axis.title.x = element_blank(),
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)#,
+    # legend.position = 'top'#,  
+    # panel.grid.minor = element_blank(), 
+    # panel.grid.major = element_blank()
+  )
 ```
 
