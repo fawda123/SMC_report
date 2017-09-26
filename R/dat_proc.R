@@ -1,4 +1,5 @@
 library(tidyverse)
+library(forcats)
 library(rgdal)
 library(rgeos)
 library(sp)
@@ -45,12 +46,16 @@ evdat <- evdat %>%
 oedat <- fls %>% 
   filter(grepl('Scores', fl)) %>% 
   unnest %>% 
+  # filter(!Type %in% 'notrecent') %>% # do we need this?
   mutate(
     fl = gsub('^ignore/|\\.Scores.*$', '', fl),
-    Type = factor(Type, levels = c('ref', 'int', 'str'))
+    type = factor(Type),
+    type = fct_collapse(type, ref = c('notrecent', 'rc', 'rv')), # what to do with these types?
+    scr = OoverE, 
+    ind = 'oe'
   ) %>% 
   rename(site = X) %>% 
-  dplyr::select(fl, site, O, E, OoverE) %>% 
+  dplyr::select(fl, site, type, scr) %>% 
   left_join(latlon, ., by = 'site')
 
 # MMI data
@@ -59,8 +64,10 @@ mmdat <- fls %>%
   unnest %>% 
   mutate(
     fl = gsub('^ignore/|\\.combined.*$', '', fl), 
-    Type = factor(Type, levels = c('ref', 'int', 'str'))
+    type = factor(Type, levels = c('ref', 'int', 'str')), 
+    ind = 'mmi'
   ) %>% 
+  rename
   rename(site = X) %>% 
   left_join(latlon, ., by = 'site') %>% 
   na.omit

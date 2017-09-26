@@ -7,11 +7,25 @@ output:
 self_contained: yes
 ---
 
+```{r, echo = F}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
 1.	The new index works. [Demonstrate basic performance parameters, like lack of bias within reference sites, and good responsiveness to a few stressor gradients]
 2.	The new index makes our region (or watersheds/land use classes) look good/bad [calculate extent of stream-miles in good/bad classes, based on reference percentiles; compare to results from earlier algae IBIs]
 3.	The new index is complementary to the CSCI [demonstrate agreement, and/or insightful disagreements]
 
 ```{r}
+# libraries
+library(tidyverse)
+library(rgdal)
+library(rgeos)
+library(sp)
+library(raster)
+
+# data
 data(mmdat)
 data(oedat)
 data(evdat)
