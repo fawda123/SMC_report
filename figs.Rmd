@@ -13,7 +13,6 @@ library(knitr)
 opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
-
 *From Rafi:* The big message is that these new indices enhance our ability to manage streams and implement policies like biological objectives/biointegrity-biostimulatory policies. This index is going to help both the regulators and regulated community alike by giving them a new way to assess biological condition.
 
 Graphics should demonstrate:
@@ -40,15 +39,19 @@ library(plotly)
 data(indat)
 data(evdat)
 data(sheds)
+
+# color palettes
+ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
+  rev
+tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
+  rev
 ```
 
 ```{r box, fig.height = 5, fig.width = 9}
-tycol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
-  rev
 ggplot(indat, aes(x = type, y = scr)) + 
   geom_boxplot(outlier.size = 1, aes(fill = type), alpha = 0.7) + 
   facet_grid(ind ~ tax) +
-  scale_fill_manual(values = tycol) +
+  scale_fill_manual(values = ctcol) +
   scale_y_continuous('Index Score') + 
   theme_minimal() +
   theme(
@@ -172,10 +175,10 @@ ggplot(toplo) +
                aes(x = long, y = lat, group = group), 
                colour = 'gray', fill = 'lightgrey', alpha = 0.8
                ) + 
-  geom_point(aes(x = lon, y = lat, col = `Index\nscore`), alpha = 0.7) +
+  geom_point(aes(x = lon, y = lat, fill = `Index\nscore`), pch = 21, colour = 'black', alpha = 0.7) +
   facet_wrap(tax ~ ind, ncol = 2) + 
   coord_map() + 
-  scale_colour_gradientn(colors = rev(tycol)) + 
+  scale_fill_gradientn(colors = rev(tycol)) + 
   theme_minimal() +
   theme(
     axis.title.y = element_blank(), 
@@ -187,20 +190,21 @@ ggplot(toplo) +
 # prep indat for micromap
 # merge with some evdat variable
 
-evvar <- 'OrthoPhosphate_as_P_mgPerL'
+evvar <- c('OrthoPhosphate_as_P_mgPerL', 'Ammonia_as_N_mgPerL')
 invar <- 'pMMI'
 txvar <- 'Soft-bodied'
 
 # subset and summarize data by inputs
 toplo <- evdat[, c('id', evvar)]
-names(toplo)[names(toplo) %in% evvar] <- 'evvar'
+names(toplo)[names(toplo) %in% evvar] <- c('evvar1', 'evvar2')
 toplo <- toplo %>% 
   left_join(indat, ., by = 'id') %>% 
   filter(ind %in% invar & tax %in% txvar) %>% 
   group_by(SMC_Name) %>% 
   summarise(
     scr = mean(scr, na.rm = TRUE), 
-    evvar = mean(evvar, na.rm = TRUE)
+    evvar1 = mean(evvar1, na.rm = TRUE),
+    evvar2 = mean(evvar2, na.rm = TRUE)
   ) %>% 
   ungroup %>% 
   as.data.frame
@@ -212,8 +216,8 @@ polys <- create_map_table(sheds, 'SMC_Name')
 # plot
 mmplot(stat.data = toplo,
   map.data = polys,
-  panel.types = c('labels', 'dot', 'dot', 'map'),
-  panel.data = list('SMC_Name', 'scr', 'evvar', NA), 
+  panel.types = c('labels', 'dot', 'dot', 'dot', 'map'),
+  panel.data = list('SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
   grouping = 3,
   ord.by = 'scr',  
   median.row = F,
@@ -222,52 +226,8 @@ mmplot(stat.data = toplo,
   panel.att = list(
       list(1, header = 'SMC watershed', text.size = 0.6),
       list(2, header = paste(invar, txvar, sep = ', ')),
-      list(3, header = 'Orthophosphate')
-    ),
-  plot.panel.spacing = 0
-  )
-
-```
-```{r micro2, fig.height = 6, fig.width = 7.5}
-# prep indat for micromap
-# merge with some evdat variable
-
-evvar <- 'Ammonia_as_N_mgPerL'
-invar <- 'pMMI'
-txvar <- 'Soft-bodied'
-
-# subset and summarize data by inputs
-toplo <- evdat[, c('id', evvar)]
-names(toplo)[names(toplo) %in% evvar] <- 'evvar'
-toplo <- toplo %>% 
-  left_join(indat, ., by = 'id') %>% 
-  filter(ind %in% invar & tax %in% txvar) %>% 
-  group_by(SMC_Name) %>% 
-  summarise(
-    scr = mean(scr, na.rm = TRUE), 
-    evvar = mean(evvar, na.rm = TRUE)
-  ) %>% 
-  ungroup %>% 
-  as.data.frame
-  
-
-# create map table for polygons
-polys <- create_map_table(sheds, 'SMC_Name')
-
-# plot
-mmplot(stat.data = toplo,
-  map.data = polys,
-  panel.types = c('labels', 'dot', 'dot', 'map'),
-  panel.data = list('SMC_Name', 'scr', 'evvar', NA), 
-  grouping = 3,
-  ord.by = 'scr',  
-  median.row = F,
-  colors = rev(tycol), 
-  map.link = c('SMC_Name', 'ID'),
-  panel.att = list(
-      list(1, header = 'SMC watershed', text.size = 0.6),
-      list(2, header = paste(invar, txvar, sep = ', ')),
-      list(3, header = 'Ammonium')
+      list(3, header = 'Orthophosphate'), 
+      list(4, header = 'Ammonium')
     ),
   plot.panel.spacing = 0
   )
