@@ -192,7 +192,7 @@ ggplot(toplo) +
 
 evvar <- c('OrthoPhosphate_as_P_mgPerL', 'Ammonia_as_N_mgPerL')
 invar <- 'pMMI'
-txvar <- 'Soft-bodied'
+txvar <- 'Diatom'
 
 # subset and summarize data by inputs
 toplo <- evdat[, c('id', evvar)]
