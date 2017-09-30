@@ -83,6 +83,26 @@ mmdat <- fls %>%
 indat <- rbind(mmdat, oedat)
 
 ##
+# add tenth percentile thresholds
+# from https://drive.google.com/open?id=0B60qUcYQTz_dVy11RGM2V21rV1E
+# IndexPerformance tab
+
+# thresholds
+thrsh <- tibble(
+  fl = c('diatoms', 'sba', 'hybrid', 'diatoms', 'sba', 'hybrid'),
+  ind = c('oe', 'oe', 'oe', 'mmi', 'mmi', 'mmi'),
+  thr = c(0.77, 0.51, 0.69, 0.75, 0.80, 0.78)
+)
+
+# join w/ indat, create categories
+indat <- indat %>% 
+  left_join(thrsh, by = c('ind', 'fl')) %>% 
+  mutate(
+    scrcat = ifelse(scr < thr, 'blw', 'abv')
+  ) %>% 
+  dplyr::select(-thr)
+
+##
 # get channel type
 
 # rafi's channel data
@@ -113,16 +133,20 @@ indat <- indat %>%
     type = factor(type, 
                   levels = c('ref', 'int', 'str'),
                   labels = c('Reference', 'Intermediate', 'Stressed')
-                  )
+                  ), 
+    scrcat = factor(scrcat, 
+                    levels = c('abv', 'blw'), 
+                    labels = c('Hi', 'Lo')
+                    )
   ) %>% 
-  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr)
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, scrcat)
 
 # add smc shed names to indat
 coordinates(indat) <- indat[, c('lon', 'lat')]
 crs(indat) <- CRS(prstr)
 indat <- raster::intersect(indat, sheds) %>%
   data.frame %>%
-  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, SMC_Name)
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, scrcat, SMC_Name)
 
 ##
 # save 

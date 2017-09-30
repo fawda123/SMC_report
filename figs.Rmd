@@ -23,7 +23,7 @@ Graphics should demonstrate:
 
 3.	The new index is complementary to the CSCI [demonstrate agreement, and/or insightful disagreements]
 
-```{r}
+```{r setup}
 # libraries
 library(tidyverse)
 library(broom)
@@ -34,6 +34,7 @@ library(raster)
 library(gridExtra)
 library(micromap)
 library(plotly)
+source('R/funcs.R')
 
 # data
 data(indat)
@@ -168,17 +169,17 @@ shd <- tidy(sheds) %>%
 
 # all index data
 toplo <- indat %>% 
-  rename(`Index\nscore` = scr)
+  rename(`Index\ncategory` = scrcat)
 
 ggplot(toplo) + 
   geom_polygon(data = shd, 
                aes(x = long, y = lat, group = group), 
                colour = 'gray', fill = 'lightgrey', alpha = 0.8
                ) + 
-  geom_point(aes(x = lon, y = lat, fill = `Index\nscore`), pch = 21, colour = 'black', alpha = 0.7) +
+  geom_point(aes(x = lon, y = lat, colour = `Index\ncategory`), alpha = 0.7) +
   facet_wrap(tax ~ ind, ncol = 2) + 
   coord_map() + 
-  scale_fill_gradientn(colors = rev(tycol)) + 
+  scale_colour_manual(values = ctcol[c(1, 3)]) + 
   theme_minimal() +
   theme(
     axis.title.y = element_blank(), 
@@ -186,11 +187,139 @@ ggplot(toplo) +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)
   )
 ```
-```{r micro1, fig.height = 6, fig.width = 7.5}
+
+```{r cattyp, fig.height = 5, fig.width = 9}
+# get percent sites in each category by type
+toplo <- indat %>% 
+  group_by(type, ind, tax, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  ungroup %>% 
+  rename(`Index\ncategory` = scrcat)
+  
+ggplot(toplo, aes(x = type, y = n, fill = `Index\ncategory`)) +
+  geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
+  facet_grid(ind ~ tax) + 
+  scale_y_continuous('Proportion', expand = c(0, 0)) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  ) 
+```
+
+```{r catchcls, fig.height = 5, fig.width = 9}
+# get percent sites in each category by type
+toplo <- indat %>% 
+  group_by(chcls, ind, tax, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  ungroup %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  na.omit
+  
+ggplot(toplo, aes(x = chcls, y = n, fill = `Index\ncategory`)) +
+  geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
+  facet_grid(ind ~ tax) + 
+  scale_y_continuous('Proportion', expand = c(0, 0)) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  ) 
+```
+
+```{r catshed, fig.height = 8, fig.width = 8}
+
+# get percent sites in each category by type
+toplo <- indat %>% 
+  group_by(SMC_Name, ind, tax, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  group_by(SMC_Name, ind, tax) %>% 
+  nest %>% 
+  mutate(
+    ntot = map(data, ~ sum(.x$n) %>% rep(2))
+    ) %>% 
+  unnest %>% 
+  ungroup %>% 
+  mutate(n = n / ntot) %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  split(., .[, c('ind', 'tax')])
+
+# arrange each barplot separately
+for(i in seq_along(names(toplo))){
+  
+  tmp <- toplo[[i]] %>% 
+    spread(`Index\ncategory`, n) %>% 
+    arrange(Hi) %>% 
+    mutate(SMC_Name = factor(SMC_Name, levels = SMC_Name)) %>% 
+    gather(`Index category`, 'n', Hi:Lo)
+  
+  p <- ggplot(tmp, aes(x = SMC_Name, y = n, fill = `Index category`)) + 
+    geom_bar(stat = 'identity',  position = position_stack(reverse = TRUE), colour = 'grey', alpha = 0.8, width = 0.75) +
+    facet_wrap(ind ~ tax) +
+    scale_fill_manual(values = ctcol[c(1, 3)]) + 
+    scale_y_continuous('Proportion', expand = c(0, 0)) + 
+    coord_flip() + 
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 7), 
+      axis.title.y = element_blank(), 
+      axis.title.x = element_blank(),
+      panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+      legend.position = 'top', 
+      panel.grid.minor = element_blank(), 
+      panel.grid.major = element_blank()
+    )
+  
+  # get legend if last
+  if(i == length(toplo))
+    pleg <- g_legend(p)
+  
+  p <- p + theme(legend.position = 'none')
+  p <- ggplot_gtable(ggplot_build(p))
+  
+  assign(paste0('p', i), p) 
+  
+}
+
+# Get the widths
+maxWidth = grid::unit.pmax(p1$widths[2:3], p2$widths[2:3], p3$widths[2:3], p4$widths[2:3], p5$widths[2:3], p6$widths[2:3])
+
+# Set the widths
+p1$widths[2:3] <- maxWidth
+p2$widths[2:3] <- maxWidth
+p3$widths[2:3] <- maxWidth
+p4$widths[2:3] <- maxWidth
+p5$widths[2:3] <- maxWidth
+p6$widths[2:3] <- maxWidth
+
+grid.arrange(
+  pleg, 
+  arrangeGrob(p1, p2, p3, p4, p5, p6, ncol = 2),
+  heights = c(0.1, 1),
+  bottom = 'Proportion of stream sites'
+  )
+
+```
+
+```{r micro1, fig.height = 5, fig.width = 7.5}
 # prep indat for micromap
 # merge with some evdat variable
 
-evvar <- c('OrthoPhosphate_as_P_mgPerL', 'Ammonia_as_N_mgPerL')
+evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
 invar <- 'pMMI'
 txvar <- 'Diatom'
 
@@ -213,21 +342,52 @@ toplo <- toplo %>%
 # create map table for polygons
 polys <- create_map_table(sheds, 'SMC_Name')
 
+# micromap globals
+ptsz <- 1.5
+pwds <- 0.8
+xszs <- 0.5
+bgcl <- 'gray95'
+
 # plot
 mmplot(stat.data = toplo,
   map.data = polys,
-  panel.types = c('labels', 'dot', 'dot', 'dot', 'map'),
-  panel.data = list('SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
+  panel.types = c('dot_legend', 'labels', 'dot', 'dot', 'dot', 'map'),
+  panel.data = list(NA, 'SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
   grouping = 3,
   ord.by = 'scr',  
+  plot.width = 9,
+  plot.height = 4,
   median.row = F,
-  colors = rev(tycol), 
+  colors = rev(tycol),
   map.link = c('SMC_Name', 'ID'),
   panel.att = list(
-      list(1, header = 'SMC watershed', text.size = 0.6),
-      list(2, header = paste(invar, txvar, sep = ', ')),
-      list(3, header = 'Orthophosphate'), 
-      list(4, header = 'Ammonium')
+      list(2, 
+           header = 'SMC watershed', 
+           text.size = 0.6, 
+           align = 'left', 
+           panel.width = 1
+           ),
+      list(3, 
+           header = paste(invar, txvar, sep = ', '), 
+           point.size = ptsz, 
+           panel.width = pwds, 
+           xaxis.labels.size = xszs, 
+           graph.bgcolor = bgcl
+           ),
+      list(4, 
+           header = 'Phosphorus\n(mg/L)', 
+           point.size = ptsz, 
+           panel.width = pwds, 
+           xaxis.labels.size = xszs, 
+           graph.bgcolor = bgcl
+           ), 
+      list(5, 
+           header = 'Total Nitrogen\n(mg/L', 
+           point.size = ptsz, 
+           panel.width = pwds, 
+           xaxis.labels.size = xszs, 
+           graph.bgcolor = bgcl
+           )
     ),
   plot.panel.spacing = 0
   )
