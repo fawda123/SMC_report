@@ -99,8 +99,7 @@ indat <- indat %>%
   left_join(thrsh, by = c('ind', 'fl')) %>% 
   mutate(
     scrcat = ifelse(scr < thr, 'blw', 'abv')
-  ) %>% 
-  dplyr::select(-thr)
+  )
 
 ##
 # get channel type
@@ -139,14 +138,14 @@ indat <- indat %>%
                     labels = c('Hi', 'Lo')
                     )
   ) %>% 
-  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, scrcat)
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, thr, scrcat)
 
 # add smc shed names to indat
 coordinates(indat) <- indat[, c('lon', 'lat')]
 crs(indat) <- CRS(prstr)
 indat <- raster::intersect(indat, sheds) %>%
   data.frame %>%
-  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, scrcat, SMC_Name)
+  dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, thr, scrcat, SMC_Name)
 
 ##
 # save 
