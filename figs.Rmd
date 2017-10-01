@@ -13,6 +13,8 @@ library(knitr)
 opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+### Overview
+
 *From Rafi:* The big message is that these new indices enhance our ability to manage streams and implement policies like biological objectives/biointegrity-biostimulatory policies. This index is going to help both the regulators and regulated community alike by giving them a new way to assess biological condition.
 
 Graphics should demonstrate:
@@ -46,7 +48,10 @@ ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>%
   rev
 tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
   rev
+ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:2)]
 ```
+
+### Score distributions
 
 ```{r box, fig.height = 5, fig.width = 9}
 ggplot(indat, aes(x = type, y = scr)) + 
@@ -158,6 +163,8 @@ ggplot() +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)
   )
 ```
+
+### Hi/lo distributions
 
 ```{r mapall, fig.height = 8, fig.width = 9}
 # add shc shed names to fortified shapefile
@@ -314,6 +321,64 @@ grid.arrange(
   )
 
 ```
+
+### Relationships with environmental variables
+
+#### Scatterplots
+
+```{r, fig.height = 6, fig.width = 8}
+
+evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
+
+toplo <- evdat[, c('id', evvar)] %>% 
+  left_join(indat, ., by = 'id') %>% 
+  rename(
+    Phosphorus = Phosphorus_as_P_mgPerL,
+    `Total Nitrogen` = Nitrogen_Total_mgPerL,
+    `Index Score` = scr,
+    `Channel Type` = chcls
+  ) %>% 
+  dplyr::select(id, ind, `Channel Type`, tax, `Index Score`, thr, Phosphorus, `Total Nitrogen`) %>% 
+  filter(!`Channel Type` %in% 'All earthen' & !is.na(`Channel Type`))
+
+ggplot(toplo, aes(x = Phosphorus, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_x_log10('Phosphorus (mg/L)') +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+  
+```
+
+```{r, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = `Total Nitrogen`, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+
+#### Micromaps
 
 ```{r micro1, fig.height = 5, fig.width = 7.5}
 # prep indat for micromap
