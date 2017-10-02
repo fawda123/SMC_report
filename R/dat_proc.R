@@ -148,9 +148,26 @@ indat <- raster::intersect(indat, sheds) %>%
   dplyr::select(id, site, lon, lat, type, ind, chcls, tax, scr, thr, scrcat, SMC_Name)
 
 ##
+# addl algal IBI data
+
+# old algal ibi divided by median of ref calibration scores to standardize
+thrsh <- tibble(
+  ind = c('H20','D18','S2'),
+  thrsh = c(75, 79, 69)
+  )
+aldat <- read.csv('ignore/tblAlgaeIBI.csv', stringsAsFactors = FALSE) %>% 
+  dplyr::select(SampleID, S2, D18, H20) %>% 
+  gather('ind', 'scr', S2:H20) %>% 
+  left_join(thrsh, by = 'ind') %>% 
+  mutate(scr = scr / thrsh) %>% 
+  dplyr::select(-thrsh)
+
+
+##
 # save 
 
 save(indat, file = 'data/indat.RData', compress = 'xz')
 save(evdat, file = 'data/evdat.RData', compress = 'xz')
+save(aldat, file = 'data/aldat.RData', compress = 'xz')
 save(sheds, file = 'data/sheds.RData', compress = 'xz')
 
