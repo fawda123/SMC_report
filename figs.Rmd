@@ -326,7 +326,7 @@ grid.arrange(
 
 #### Scatterplots
 
-```{r, fig.height = 6, fig.width = 8}
+```{r byphos, fig.height = 6, fig.width = 8}
 
 evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
 
@@ -339,7 +339,7 @@ toplo <- evdat[, c('id', evvar)] %>%
     `Channel Type` = chcls
   ) %>% 
   dplyr::select(id, ind, `Channel Type`, tax, `Index Score`, thr, Phosphorus, `Total Nitrogen`) %>% 
-  filter(!`Channel Type` %in% 'All earthen' & !is.na(`Channel Type`))
+  filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`))
 
 ggplot(toplo, aes(x = Phosphorus, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
@@ -359,7 +359,7 @@ ggplot(toplo, aes(x = Phosphorus, y = `Index Score`, colour = `Channel Type`)) +
   
 ```
 
-```{r, fig.height = 6, fig.width = 8}
+```{r bynitr, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = `Total Nitrogen`, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm') +
@@ -376,7 +376,6 @@ ggplot(toplo, aes(x = `Total Nitrogen`, y = `Index Score`, colour = `Channel Typ
     panel.grid.major = element_blank()
   )
 ```
-
 
 #### Micromaps
 

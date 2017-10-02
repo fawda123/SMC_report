@@ -106,9 +106,9 @@ indat <- indat %>%
 
 # rafi's channel data
 chdat <- read.csv('ignore/csci.alg.df.csv', stringsAsFactors = FALSE) %>%
-  dplyr::select(StationCode, ChannelClass_3hf) %>%
+  dplyr::select(StationCode, ChannelClass_3ef) %>%
   rename(
-    chcls = ChannelClass_3hf, 
+    chcls = ChannelClass_3ef, 
     site = StationCode
     )
 
