@@ -162,6 +162,12 @@ aldat <- read.csv('ignore/tblAlgaeIBI.csv', stringsAsFactors = FALSE) %>%
   mutate(scr = scr / thrsh) %>% 
   dplyr::select(-thrsh)
 
+# match SampleID with id
+aldat <- evdat %>% 
+  filter(id %in% unique(indat$id)) %>% 
+  dplyr::select(id, SampleID) %>% 
+  left_join(aldat, ., by = 'SampleID') %>% 
+  dplyr::select(id, ind, scr)
 
 ##
 # save 

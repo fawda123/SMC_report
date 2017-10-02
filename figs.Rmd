@@ -380,7 +380,7 @@ ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channe
 ```
 
 ##### % Shading
-```{r byshading, fig.height = 6, fig.width = 8}
+```{r byshad, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
   stat_smooth(method = 'lm')  +
   geom_point(alpha = 0.7, size = 1.5) +
@@ -513,9 +513,61 @@ mmplot(stat.data = toplo,
 
 ```
 
-### Comparison with existing indices
+### Comparison with existing algal ndices {.tabset}
 
-```{r}
+#### S2
+```{r cmps2, fig.height = 10, fig.width = 7.5}
 
+alind <- c('S2', 'H20', 'D18')
+lms <- c(0, 1.6)
+
+for(i in seq_along(alind)){
+  
+  togrb <- alind[i]
+  xlab <- paste(togrb, 'Index Score')
+
+  toplo <- aldat[aldat$ind %in% togrb, ] %>% 
+    rename(cmp = scr) %>% 
+    dplyr::select(-ind) %>% 
+    left_join(indat, ., by = 'id') %>% 
+    mutate(scrdf = scr - cmp)
+  
+  pA <- ggplot(toplo, aes(x = cmp, y = scr)) + 
+    geom_point(alpha = 0.6, size = 1) +
+    geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_grid(ind ~ tax) +
+    scale_colour_manual(values = ptcol) +
+    scale_y_continuous('New Index Score', limits = lms) +
+    scale_x_continuous(limits = lms) +
+    pbase +
+    theme(axis.title.x = element_blank())
+  
+  pB <- ggplot(toplo, aes(x = cmp, y = scrdf)) + 
+    geom_point(alpha = 0.6, size = 1) +
+    geom_hline(yintercept = 0, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_grid(ind ~ tax) +
+    scale_colour_manual(values = ptcol) +
+    scale_y_continuous('New - Old Index Score') +
+    scale_x_continuous(limits = lms) +
+    pbase +
+    theme(axis.title.x = element_blank())
+  
+  assign(paste0('pA_', togrb), pA)
+  assign(paste0('pB_', togrb), pB)
+  
+}
+
+grid.arrange(pA_S2, pB_S2, ncol = 1, bottom = 'S2 Index Score')
 ```
 
+#### H20
+```{r cmph20, fig.height = 10, fig.width = 7.5}
+grid.arrange(pA_H20, pB_H20, ncol = 1, bottom = 'H20 Index Score')
+```
+
+#### D18
+```{r cmpd18, fig.height = 10, fig.width = 7.5}
+grid.arrange(pA_D18, pB_D18, ncol = 1, bottom = 'D18 Index Score')
+```
