@@ -42,6 +42,7 @@ source('R/funcs.R')
 data(indat)
 data(evdat)
 data(sheds)
+data(aldat)
 
 # color palettes
 ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
@@ -163,7 +164,7 @@ ggplot() +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)
   )
 ```
-
+1 
 ### Hi/lo distributions
 
 ```{r mapall, fig.height = 8, fig.width = 9}
@@ -324,43 +325,50 @@ grid.arrange(
 
 ### Relationships with environmental variables
 
-#### Scatterplots
+#### Scatterplots {.tabset}
 
-```{r byphos, fig.height = 6, fig.width = 8}
+```{r setscat, fig.height = 6, fig.width = 8}
 
-evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
+evvar <- list(
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
+)
 
-toplo <- evdat[, c('id', evvar)] %>% 
+toplo <- evdat[, c('id', evvar$varorg)] %>% 
   left_join(indat, ., by = 'id') %>% 
   rename(
-    Phosphorus = Phosphorus_as_P_mgPerL,
-    `Total Nitrogen` = Nitrogen_Total_mgPerL,
     `Index Score` = scr,
     `Channel Type` = chcls
   ) %>% 
-  dplyr::select(id, ind, `Channel Type`, tax, `Index Score`, thr, Phosphorus, `Total Nitrogen`) %>% 
+  .[, c('id', 'ind', 'Channel Type', 'tax', 'thr', 'Index Score', evvar$varorg)] %>% 
   filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`))
 
-ggplot(toplo, aes(x = Phosphorus, y = `Index Score`, colour = `Channel Type`)) +
-  geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
-  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
-  facet_grid(ind ~ tax) +
-  scale_colour_manual(values = ptcol) +
-  scale_x_log10('Phosphorus (mg/L)') +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme_minimal() +
+# base theme
+pbase <- theme_minimal() +
   theme(
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
     legend.position = 'top', 
     panel.grid.minor = element_blank(),
     panel.grid.major = element_blank()
   )
-  
 ```
 
+##### Phosphorus
+```{r byphos, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Phosphorus (mg/L)') +
+  pbase
+```
+
+##### Nitrogen
 ```{r bynitr, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = `Total Nitrogen`, y = `Index Score`, colour = `Channel Type`)) +
+ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm') +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -368,13 +376,60 @@ ggplot(toplo, aes(x = `Total Nitrogen`, y = `Index Score`, colour = `Channel Typ
   scale_colour_manual(values = ptcol) +
   scale_y_continuous(expand = c(0, 0)) +
   scale_x_log10('Total Nitrogen (mg/L)') +
-  theme_minimal() +
-  theme(
-    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
-    legend.position = 'top', 
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
-  )
+  pbase
+```
+
+##### % Shading
+```{r byshading, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
+  stat_smooth(method = 'lm')  +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_x_continuous('% Shading') +
+  scale_y_continuous(expand = c(0, 0)) +
+  pbase
+```
+
+##### % Sands and Fines
+```{r bysafn, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('% Sands and Fines') +
+  pbase
+```
+
+##### Conductivity
+```{r bycond, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Conductivity (uS/Cm)') +
+  pbase
+```
+
+##### Temperature
+```{r bytemp, fig.height = 6, fig.width = 8}
+ggplot(toplo, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm') +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  facet_grid(ind ~ tax) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Temperature (C)') +
+  pbase
+
 ```
 
 #### Micromaps
@@ -457,3 +512,10 @@ mmplot(stat.data = toplo,
   )
 
 ```
+
+### Comparison with existing indices
+
+```{r}
+
+```
+
