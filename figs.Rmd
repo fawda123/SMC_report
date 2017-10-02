@@ -4,7 +4,8 @@ author: "Marcus Beck"
 output: 
   html_document:
     code_folding: hide
-  toc: yes
+    toc: true
+    toc_float: true
 self_contained: yes
 ---
 
@@ -325,7 +326,7 @@ grid.arrange(
 
 ### Relationships with environmental variables
 
-#### Scatterplots {.tabset}
+#### Scatterplots {.tabset .tabset-fade .tabset-pills}
 
 ```{r setscat, fig.height = 6, fig.width = 8}
 
@@ -513,7 +514,7 @@ mmplot(stat.data = toplo,
 
 ```
 
-### Comparison with existing algal ndices {.tabset}
+### Comparison with existing algal indices {.tabset .tabset-fade .tabset-pills}
 
 #### S2
 ```{r cmps2, fig.height = 10, fig.width = 7.5}
