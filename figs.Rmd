@@ -70,6 +70,25 @@ ggplot(indat, aes(x = type, y = scr)) +
   ) 
 ```
 
+```{r scrchcls, fig.height = 5, fig.width = 9}
+toplo <- indat %>% 
+  dplyr::select(chcls, scr, ind, tax) %>% 
+  na.omit
+
+ggplot(toplo, aes(x = chcls, y = scr, fill = chcls)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_grid(ind ~ tax) + 
+  scale_y_continuous('Index Score') +
+  scale_fill_manual(values = ptcol[c(3, 1, 2)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    legend.position = 'none'
+  ) 
+```
+
 ```{r bar, fig.height = 8, fig.width = 8}
 # colors
 colfun <- rev(tycol) %>% 
@@ -255,25 +274,6 @@ ggplot(toplo, aes(x = chcls, y = n, fill = `Index\ncategory`)) +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
     panel.grid.major = element_blank(), 
     panel.grid.minor = element_blank()
-  ) 
-```
-
-```{r scrchcls, fig.height = 5, fig.width = 9}
-toplo <- indat %>% 
-  dplyr::select(chcls, scr, ind, tax) %>% 
-  na.omit
-
-ggplot(toplo, aes(x = chcls, y = scr, fill = chcls)) +
-  geom_boxplot(alpha = 0.7) +
-  facet_grid(ind ~ tax) + 
-  scale_y_continuous('Index Score') +
-  scale_fill_manual(values = ptcol[c(3, 1, 2)]) + 
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1), 
-    axis.title.x = element_blank(), 
-    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
-    legend.position = 'none'
   ) 
 ```
 
