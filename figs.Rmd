@@ -141,18 +141,28 @@ key <- sheds@data %>%
 shd <- tidy(sheds) %>% 
   left_join(key, by = 'id')
 
-# merge summarized data with fortified shapefile
+# get percent sites in each category by type
+# merge with fortified sheds
 toplo <- indat %>% 
-  group_by(ind, tax, SMC_Name) %>% 
+  group_by(SMC_Name, ind, tax, scrcat) %>% 
   summarise(
-    mnval = mean(scr)
-  ) %>%
+    n = length(scrcat)
+  ) %>% 
+  group_by(SMC_Name, ind, tax) %>% 
+  nest %>% 
+  mutate(
+    ntot = map(data, ~ sum(.x$n) %>% rep(2))
+    ) %>% 
+  unnest %>% 
+  ungroup %>% 
+  mutate(n = 100 * n / ntot) %>% 
+  filter(scrcat %in% 'Hi') %>%
   left_join(shd, ., by = 'SMC_Name') %>% 
-  rename(`Ave index\nscore` = mnval)
+  rename(`% sites above\nthreshold` = n)
 
 ggplot() + 
   geom_polygon(data = toplo, 
-               aes(x = long, y = lat, fill = `Ave index\nscore`, group = group), 
+               aes(x = long, y = lat, fill = `% sites above\nthreshold`, group = group), 
                colour = 'gray', alpha = 0.8
                ) + 
   facet_wrap(tax ~ ind, ncol = 2) + 
@@ -577,27 +587,30 @@ p6
 ### Comparison with existing algal indices {.tabset .tabset-fade .tabset-pills}
 
 #### S2
-```{r cmps2, fig.height = 10, fig.width = 7.5}
+```{r cmps2, fig.height = 5, fig.width = 7}
 
 alind <- c('S2', 'H20', 'D18')
+taxs <- c('Soft-bodied', 'Hybrid', 'Diatom')
 lms <- c(0, 1.6)
 
 for(i in seq_along(alind)){
   
   togrb <- alind[i]
+  txgrb <- taxs[i]
   xlab <- paste(togrb, 'Index Score')
 
   toplo <- aldat[aldat$ind %in% togrb, ] %>% 
     rename(cmp = scr) %>% 
     dplyr::select(-ind) %>% 
     left_join(indat, ., by = 'id') %>% 
+    filter(tax %in% txgrb) %>% 
     mutate(scrdf = scr - cmp)
   
   pA <- ggplot(toplo, aes(x = cmp, y = scr)) + 
     geom_point(alpha = 0.6, size = 1) +
     geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
-    facet_grid(ind ~ tax) +
+    facet_wrap( ~ ind, ncol = 1) +
     scale_colour_manual(values = ptcol) +
     scale_y_continuous('New Index Score', limits = lms) +
     scale_x_continuous(limits = lms) +
@@ -608,7 +621,7 @@ for(i in seq_along(alind)){
     geom_point(alpha = 0.6, size = 1) +
     geom_hline(yintercept = 0, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
-    facet_grid(ind ~ tax) +
+    facet_wrap( ~ ind, ncol = 1) +
     scale_colour_manual(values = ptcol) +
     scale_y_continuous('New - Old Index Score') +
     scale_x_continuous(limits = lms) +
@@ -620,15 +633,15 @@ for(i in seq_along(alind)){
   
 }
 
-grid.arrange(pA_S2, pB_S2, ncol = 1, bottom = 'S2 Index Score')
+grid.arrange(pA_S2, pB_S2, ncol = 2, bottom = 'S2 Index Score')
 ```
 
 #### H20
-```{r cmph20, fig.height = 10, fig.width = 7.5}
-grid.arrange(pA_H20, pB_H20, ncol = 1, bottom = 'H20 Index Score')
+```{r cmph20, fig.height = 5, fig.width = 7}
+grid.arrange(pA_H20, pB_H20, ncol = 2, bottom = 'H20 Index Score')
 ```
 
 #### D18
-```{r cmpd18, fig.height = 10, fig.width = 7.5}
-grid.arrange(pA_D18, pB_D18, ncol = 1, bottom = 'D18 Index Score')
+```{r cmpd18, fig.height = 5, fig.width = 7}
+grid.arrange(pA_D18, pB_D18, ncol = 2, bottom = 'D18 Index Score')
 ```
