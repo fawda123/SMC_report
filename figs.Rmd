@@ -50,7 +50,7 @@ ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>%
   rev
 tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
   rev
-ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:2)]
+ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
 ```
 
 ### Score distributions
@@ -165,7 +165,7 @@ ggplot() +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5)
   )
 ```
-1 
+
 ### Hi/lo distributions
 
 ```{r mapall, fig.height = 8, fig.width = 9}
@@ -245,6 +245,25 @@ ggplot(toplo, aes(x = chcls, y = n, fill = `Index\ncategory`)) +
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
     panel.grid.major = element_blank(), 
     panel.grid.minor = element_blank()
+  ) 
+```
+
+```{r scrchcls, fig.height = 5, fig.width = 9}
+toplo <- indat %>% 
+  dplyr::select(chcls, scr, ind, tax) %>% 
+  na.omit
+
+ggplot(toplo, aes(x = chcls, y = scr, fill = chcls)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_grid(ind ~ tax) + 
+  scale_y_continuous('Index Score') +
+  scale_fill_manual(values = ptcol[c(3, 1, 2)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    legend.position = 'none'
   ) 
 ```
 
@@ -358,7 +377,7 @@ pbase <- theme_minimal() +
 ```{r byphos, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
   scale_colour_manual(values = ptcol) +
@@ -371,7 +390,7 @@ ggplot(toplo, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Chann
 ```{r bynitr, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
   scale_colour_manual(values = ptcol) +
@@ -383,7 +402,7 @@ ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channe
 ##### % Shading
 ```{r byshad, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
-  stat_smooth(method = 'lm')  +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
@@ -397,7 +416,7 @@ ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
 ```{r bysafn, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
   scale_colour_manual(values = ptcol) +
@@ -410,7 +429,7 @@ ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
 ```{r bycond, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
   scale_colour_manual(values = ptcol) +
@@ -423,7 +442,7 @@ ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = 
 ```{r bytemp, fig.height = 6, fig.width = 8}
 ggplot(toplo, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
+  geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
   facet_grid(ind ~ tax) +
   scale_colour_manual(values = ptcol) +
@@ -433,85 +452,126 @@ ggplot(toplo, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Ty
 
 ```
 
-#### Micromaps
+#### Micromaps {.tabset .tabset-fade .tabset-pills}
 
-```{r micro1, fig.height = 5, fig.width = 7.5}
+```{r microall, results = 'hide', fig.show = 'hide'}
 # prep indat for micromap
 # merge with some evdat variable
 
 evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
-invar <- 'pMMI'
-txvar <- 'Diatom'
-
-# subset and summarize data by inputs
-toplo <- evdat[, c('id', evvar)]
-names(toplo)[names(toplo) %in% evvar] <- c('evvar1', 'evvar2')
-toplo <- toplo %>% 
-  left_join(indat, ., by = 'id') %>% 
-  filter(ind %in% invar & tax %in% txvar) %>% 
-  group_by(SMC_Name) %>% 
-  summarise(
-    scr = mean(scr, na.rm = TRUE), 
-    evvar1 = mean(evvar1, na.rm = TRUE),
-    evvar2 = mean(evvar2, na.rm = TRUE)
-  ) %>% 
-  ungroup %>% 
-  as.data.frame
-  
-
-# create map table for polygons
-polys <- create_map_table(sheds, 'SMC_Name')
-
-# micromap globals
-ptsz <- 1.5
-pwds <- 0.8
-xszs <- 0.5
-bgcl <- 'gray95'
-
-# plot
-mmplot(stat.data = toplo,
-  map.data = polys,
-  panel.types = c('dot_legend', 'labels', 'dot', 'dot', 'dot', 'map'),
-  panel.data = list(NA, 'SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
-  grouping = 3,
-  ord.by = 'scr',  
-  plot.width = 9,
-  plot.height = 4,
-  median.row = F,
-  colors = rev(tycol),
-  map.link = c('SMC_Name', 'ID'),
-  panel.att = list(
-      list(2, 
-           header = 'SMC watershed', 
-           text.size = 0.6, 
-           align = 'left', 
-           panel.width = 1
-           ),
-      list(3, 
-           header = paste(invar, txvar, sep = ', '), 
-           point.size = ptsz, 
-           panel.width = pwds, 
-           xaxis.labels.size = xszs, 
-           graph.bgcolor = bgcl
-           ),
-      list(4, 
-           header = 'Phosphorus\n(mg/L)', 
-           point.size = ptsz, 
-           panel.width = pwds, 
-           xaxis.labels.size = xszs, 
-           graph.bgcolor = bgcl
-           ), 
-      list(5, 
-           header = 'Total Nitrogen\n(mg/L', 
-           point.size = ptsz, 
-           panel.width = pwds, 
-           xaxis.labels.size = xszs, 
-           graph.bgcolor = bgcl
-           )
-    ),
-  plot.panel.spacing = 0
+intx <- crossing(
+  invar = c('O/E', 'pMMI'), 
+  txvar = c('Diatom', 'Soft-bodied', 'Hybrid')
   )
 
+for(i in 1:nrow(intx)){
+  
+  invar <- intx[i, ]$invar
+  txvar <- intx[i, ]$txvar
+  
+  # subset and summarize data by inputs
+  toplo <- evdat[, c('id', evvar)]
+  names(toplo)[names(toplo) %in% evvar] <- c('evvar1', 'evvar2')
+  toplo <- toplo %>% 
+    left_join(indat, ., by = 'id') %>% 
+    filter(ind %in% invar & tax %in% txvar) %>% 
+    group_by(SMC_Name) %>% 
+    summarise(
+      scr = mean(scr, na.rm = TRUE), 
+      evvar1 = mean(evvar1, na.rm = TRUE),
+      evvar2 = mean(evvar2, na.rm = TRUE)
+    ) %>% 
+    ungroup %>% 
+    as.data.frame
+    
+  
+  # create map table for polygons
+  polys <- create_map_table(sheds, 'SMC_Name')
+  
+  # micromap globals
+  ptsz <- 1.5
+  pwds <- 0.8
+  xszs <- 0.5
+  bgcl <- 'gray95'
+  
+  # plot
+  p <- mmplot(stat.data = toplo,
+    map.data = polys,
+    panel.types = c('dot_legend', 'labels', 'dot', 'dot', 'dot', 'map'),
+    panel.data = list(NA, 'SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
+    grouping = 3,
+    ord.by = 'scr',  
+    plot.width = 9,
+    plot.height = 4,
+    median.row = F,
+    colors = rev(tycol),
+    map.link = c('SMC_Name', 'ID'),
+    panel.att = list(
+        list(2, 
+             header = 'SMC watershed', 
+             text.size = 0.6, 
+             align = 'left', 
+             panel.width = 1
+             ),
+        list(3, 
+             header = paste(invar, txvar, sep = ', '), 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             ),
+        list(4, 
+             header = 'Phosphorus\n(mg/L)', 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             ), 
+        list(5, 
+             header = 'Total Nitrogen\n(mg/L', 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             )
+      ),
+    plot.panel.spacing = 0
+    )
+  
+  assign(paste0('p', i), p)
+  
+  }
+
+```
+
+##### O/E, diatoms
+```{r microoedia, fig.height = 5, fig.width = 7.5}
+p1
+```
+
+##### O/E, hybrid
+```{r microoehyb, fig.height = 5, fig.width = 7.5}
+p2
+```
+
+##### O/E, soft-bodied
+```{r microoesft, fig.height = 5, fig.width = 7.5}
+p3
+```
+
+##### pMMI, diatoms
+```{r micrommdia, fig.height = 5, fig.width = 7.5}
+p4
+```
+
+##### pMMI, hybrid
+```{r micrommhyb, fig.height = 5, fig.width = 7.5}
+p5
+```
+
+##### pMMI, soft-bodied
+```{r micrommsft, fig.height = 5, fig.width = 7.5}
+p6
 ```
 
 ### Comparison with existing algal indices {.tabset .tabset-fade .tabset-pills}
