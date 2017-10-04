@@ -357,14 +357,33 @@ grid.arrange(
 
 #### Scatterplots {.tabset .tabset-fade .tabset-pills}
 
-```{r setscat, fig.height = 6, fig.width = 8}
-
+```{r setscat}
 evvar <- list(
   varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C'), 
   varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
 )
 
-toplo <- evdat[, c('id', evvar$varorg)] %>% 
+# sites and channel cls
+chcls <- indat %>% 
+  dplyr::select(id, chcls) %>% 
+  unique
+
+# old indices
+toplo_old <- evdat[, c('id', evvar$varorg)] %>% 
+  left_join(aldat, ., by = 'id') %>% 
+  inner_join(chcls, ., by = 'id') %>% 
+  rename(
+    `Index Score` = scr,
+    `Channel Type` = chcls
+  ) %>% 
+  .[, c('id', 'ind', 'Channel Type', 'Index Score', evvar$varorg)] %>% 
+  filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`)) %>% 
+  mutate(
+    ind = factor(ind, levels = c('D18', 'S2', 'H20'))
+  )
+
+# new indices
+toplo_new <- evdat[, c('id', evvar$varorg)] %>% 
   left_join(indat, ., by = 'id') %>% 
   rename(
     `Index Score` = scr,
@@ -384,8 +403,17 @@ pbase <- theme_minimal() +
 ```
 
 ##### Phosphorus
-```{r byphos, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+```{r byphos, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Phosphorus (mg/L)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -394,11 +422,22 @@ ggplot(toplo, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Chann
   scale_y_continuous(expand = c(0, 0)) +
   scale_x_log10('Phosphorus (mg/L)') +
   pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
 ##### Nitrogen
-```{r bynitr, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+```{r bynitr, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -407,11 +446,22 @@ ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channe
   scale_y_continuous(expand = c(0, 0)) +
   scale_x_log10('Total Nitrogen (mg/L)') +
   pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
 ##### % Shading
-```{r byshad, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
+```{r byshad, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_x_continuous('% Shading') +
+  scale_y_continuous(expand = c(0, 0)) +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -420,11 +470,22 @@ ggplot(toplo, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
   scale_x_continuous('% Shading') +
   scale_y_continuous(expand = c(0, 0)) +
   pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
 ##### % Sands and Fines
-```{r bysafn, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
+```{r bysafn, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('% Sands and Fines') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -433,11 +494,22 @@ ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
   scale_y_continuous(expand = c(0, 0)) +
   scale_x_continuous('% Sands and Fines') +
   pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
 ##### Conductivity
-```{r bycond, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
+```{r bycondo, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Conductivity (uS/Cm)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -446,11 +518,22 @@ ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = 
   scale_y_continuous(expand = c(0, 0)) +
   scale_x_continuous('Conductivity (uS/Cm)') +
   pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
 ##### Temperature
-```{r bytemp, fig.height = 6, fig.width = 8}
-ggplot(toplo, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
+```{r bytempo, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Temperature (C)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm', se = FALSE) +
   geom_hline(aes(yintercept = thr), linetype = 'dashed') +
@@ -460,11 +543,119 @@ ggplot(toplo, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Ty
   scale_x_continuous('Temperature (C)') +
   pbase
 
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
 ```
 
-#### Micromaps {.tabset .tabset-fade .tabset-pills}
+#### Micromaps, old {.tabset .tabset-fade .tabset-pills}
 
-```{r microall, results = 'hide', fig.show = 'hide'}
+```{r microold, results = 'hide', fig.show = 'hide'}
+# prep aldat for micromap
+# merge with some evdat variable
+
+evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')
+invar <- c('D18', 'S2', 'H20')
+
+shds <- indat %>% 
+  dplyr::select(id, SMC_Name) %>% 
+  unique
+
+for(i in seq_along(invar)){
+  
+  inv <- invar[i]
+  
+  # subset and summarize data by inputs
+  toplo <- evdat[, c('id', evvar)]
+  names(toplo)[names(toplo) %in% evvar] <- c('evvar1', 'evvar2')
+  toplo <- toplo %>% 
+    left_join(aldat, ., by = 'id') %>% 
+    filter(ind %in% inv) %>% 
+    inner_join(shds, by = 'id') %>% 
+    group_by(SMC_Name) %>% 
+    summarise(
+      scr = mean(scr, na.rm = TRUE), 
+      evvar1 = mean(evvar1, na.rm = TRUE),
+      evvar2 = mean(evvar2, na.rm = TRUE)
+    ) %>% 
+    ungroup %>% 
+    as.data.frame
+  
+  # create map table for polygons
+  polys <- create_map_table(sheds, 'SMC_Name')
+  
+  # micromap globals
+  ptsz <- 1.5
+  pwds <- 0.8
+  xszs <- 0.5
+  bgcl <- 'gray95'
+  
+  # plot
+  p <- mmplot(stat.data = toplo,
+    map.data = polys,
+    panel.types = c('dot_legend', 'labels', 'dot', 'dot', 'dot', 'map'),
+    panel.data = list(NA, 'SMC_Name', 'scr', 'evvar1', 'evvar2', NA), 
+    grouping = 3,
+    ord.by = 'scr',  
+    plot.width = 9,
+    plot.height = 4,
+    median.row = F,
+    colors = rev(tycol),
+    map.link = c('SMC_Name', 'ID'),
+    panel.att = list(
+        list(2, 
+             header = 'SMC watershed', 
+             text.size = 0.6, 
+             align = 'left', 
+             panel.width = 1
+             ),
+        list(3, 
+             header = inv, 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             ),
+        list(4, 
+             header = 'Phosphorus\n(mg/L)', 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             ), 
+        list(5, 
+             header = 'Total Nitrogen\n(mg/L', 
+             point.size = ptsz, 
+             panel.width = pwds, 
+             xaxis.labels.size = xszs, 
+             graph.bgcolor = bgcl
+             )
+      ),
+    plot.panel.spacing = 0
+    )
+  
+  assign(paste0('p', i), p)
+  
+  }
+
+```
+
+##### D18
+```{r microd18, fig.height = 5, fig.width = 7.5}
+p1
+```
+
+##### S2
+```{r micros2, fig.height = 5, fig.width = 7.5}
+p2
+```
+
+##### H20
+```{r microh20, fig.height = 5, fig.width = 7.5}
+p3
+```
+
+#### Micromaps, new {.tabset .tabset-fade .tabset-pills}
+
+```{r micronew, results = 'hide', fig.show = 'hide'}
 # prep indat for micromap
 # merge with some evdat variable
 
@@ -493,7 +684,6 @@ for(i in 1:nrow(intx)){
     ) %>% 
     ungroup %>% 
     as.data.frame
-    
   
   # create map table for polygons
   polys <- create_map_table(sheds, 'SMC_Name')
@@ -559,30 +749,36 @@ for(i in 1:nrow(intx)){
 p1
 ```
 
+
 ##### O/E, hybrid
 ```{r microoehyb, fig.height = 5, fig.width = 7.5}
 p2
 ```
+
 
 ##### O/E, soft-bodied
 ```{r microoesft, fig.height = 5, fig.width = 7.5}
 p3
 ```
 
+
 ##### pMMI, diatoms
 ```{r micrommdia, fig.height = 5, fig.width = 7.5}
 p4
 ```
+
 
 ##### pMMI, hybrid
 ```{r micrommhyb, fig.height = 5, fig.width = 7.5}
 p5
 ```
 
+
 ##### pMMI, soft-bodied
 ```{r micrommsft, fig.height = 5, fig.width = 7.5}
 p6
 ```
+
 
 ### Comparison with existing algal indices {.tabset .tabset-fade .tabset-pills}
 
