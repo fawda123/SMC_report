@@ -4,6 +4,8 @@ library(rgdal)
 library(rgeos)
 library(sp)
 library(raster)
+library(readxl)
+library(lubridate)
 
 ##
 # SMC boundaries
@@ -170,8 +172,27 @@ aldat <- evdat %>%
   dplyr::select(id, ind, scr)
 
 ##
-# save 
+# cram and csci scores
+# filtered by smc sites from indat
 
+ccdat <- read_excel('ignore/cram_csci.xlsx') %>% 
+  mutate(
+    SampleDate = format(SampleDate, format = '%m.%d.%y'),
+    SampleDate = gsub('^0', '', SampleDate), 
+    SampleDate = gsub('(^[1-9]+\\.)0', '\\1', SampleDate), 
+    SampleDate = paste0(SampleDate, '_1')
+  ) %>% 
+  unite('id', StationCode, SampleDate, sep = '_') %>% 
+  rename(
+    CRAM = IndexScore
+  ) %>% 
+  filter(!duplicated(id)) %>% 
+  filter(id %in% indat$id)
+
+##
+# save
+
+save(ccdat, file = 'data/ccdat.RData', compress = 'xz')
 save(indat, file = 'data/indat.RData', compress = 'xz')
 save(evdat, file = 'data/evdat.RData', compress = 'xz')
 save(aldat, file = 'data/aldat.RData', compress = 'xz')
