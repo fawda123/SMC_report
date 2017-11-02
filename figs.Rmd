@@ -849,8 +849,8 @@ grid.arrange(pA_D18, pB_D18, ncol = 2, bottom = 'D18 Index Score')
 
 ```{r}
 evvar <- list(
-  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm'), 
-  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', 'Conductivity (mS/cm)')
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'CondQR50'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', 'Pred. Cond.')
 )
 
 # combine index data, cram/csci data, and environmental data
@@ -858,7 +858,10 @@ toplo <- indat %>%
   select(id, ind, tax, scr, thr, scrcat) %>% 
   inner_join(ccdat, ., by = 'id') %>% 
   inner_join(evdat[, c('id', evvar$varorg)], ., by = 'id') %>% 
-  mutate(CSCI = cut(CSCI, breaks = c(-Inf, 0.79, Inf), labels = c('Lo', 'Hi'))) %>% 
+  mutate(
+    CSCI = cut(CSCI, breaks = c(-Inf, 0.79, Inf), labels = c('Lo', 'Hi')), 
+    prcond = SpecificConductivity_uSPercm / CondQR50
+    ) %>% 
   unite('bug_alg', CSCI, scrcat, sep = ' / ') %>% 
   split(.[, c('tax', 'ind')])
 
@@ -869,49 +872,58 @@ for(i in seq_along(names(toplo))){
   cmb <- gsub('\\.', ', ', cmb)
   
   pcrm <- ggplot(tmp, aes(x = bug_alg, y = CRAM)) + 
-    geom_boxplot(fill = 'lightgrey', alpha = 0.8) + 
+    geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) + 
+    geom_jitter(alpha = 0.1, size = 1) + 
     theme_bw() + 
-    scale_x_discrete('CSCI / ASCI') + 
-    ggtitle(cmb)
+    theme(axis.title.x = element_blank()) #+
+    # ggtitle(cmb)
   pnut <- ggplot(tmp, aes(x = bug_alg, y = Nitrogen_Total_mgPerL)) + 
-    geom_boxplot(fill = 'lightgrey', alpha = 0.8) +
+    geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) +
+    geom_jitter(alpha = 0.1, size = 1) + 
     theme_bw() + 
-    scale_x_discrete('CSCI / ASCI') + 
-    scale_y_log10('Total Nitrogen (mg/l)') +
-    ggtitle(cmb)
+    theme(axis.title.x = element_blank()) + 
+    scale_y_log10('Total Nitrogen (mg/l)')
+  pcnd <- ggplot(tmp, aes(x = bug_alg, y = prcond)) + 
+    geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) +
+    geom_jitter(alpha = 0.1, size = 1) + 
+    theme_bw() + 
+    theme(axis.title.x = element_blank()) +
+    scale_y_log10('Conductivity (obs/pred)') + 
+    coord_cartesian(ylim = c(0.1, 20))
   
   assign(paste0('pcrm', i), pcrm)
   assign(paste0('pnut', i), pnut)
+  assign(paste0('pcnd', i), pcnd)
   
 }
 ```
 
 #### Diatom, O/E
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm1, pnut1, ncol = 2)
+grid.arrange(pcrm1, pnut1, pcnd1, ncol = 3, bottom = 'CSCI / ASCI')
 ```
 
 #### Soft-bodied, O/E
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm2, pnut2, ncol = 2)
+grid.arrange(pcrm2, pnut2, pcnd2, ncol = 3, bottom = 'CSCI / ASCI')
 ```
 
 #### Hybrid, O/E
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm3, pnut3, ncol = 2)
+grid.arrange(pcrm3, pnut3, pcnd3, ncol = 3, bottom = 'CSCI / ASCI')
 ```
 
 #### Diatom, pMMI
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm4, pnut4, ncol = 2)
+grid.arrange(pcrm4, pnut4, pcnd4, ncol = 3, bottom = 'CSCI / ASCI')
 ```
 
 #### Soft-bodied, pMMI
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm5, pnut5, ncol = 2)
+grid.arrange(pcrm5, pnut5, pcnd5, ncol = 3, bottom = 'CSCI / ASCI')
 ```
 
 #### Hybrid, pMMI
 ```{r, fig.height = 3, fig.width = 8}
-grid.arrange(pcrm6, pnut6, ncol = 2)
+grid.arrange(pcrm6, pnut6, pcnd6, ncol = 3, bottom = 'CSCI / ASCI')
 ```
