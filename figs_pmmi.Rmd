@@ -1,0 +1,175 @@
+---
+title: "Figures2"
+author: "Marcus Beck"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+self_contained: yes
+---
+
+```{r, echo = F}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE, fig.path = 'figs_pmmi/')
+```
+
+```{r setup}
+# libraries
+library(tidyverse)
+library(broom)
+library(rgdal)
+library(rgeos)
+library(sp)
+library(raster)
+library(gridExtra)
+library(micromap)
+library(plotly)
+source('R/funcs.R')
+
+# data
+data(indat)
+data(evdat)
+data(sheds)
+data(aldat)
+data(ccdat)
+
+# color palettes
+ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
+  rev
+tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
+  rev
+ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
+```
+
+### Map
+
+```{r mapall, fig.height = 5, fig.width = 6}
+# add shc shed names to fortified shapefile
+key <- sheds@data %>% 
+  rownames_to_column('id') %>% 
+  dplyr::select(id, SMC_Name)
+shd <- tidy(sheds) %>% 
+  left_join(key, by = 'id')
+
+# all index data
+toplo <- indat %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid')
+
+ggplot(toplo) + 
+  geom_polygon(data = shd, 
+               aes(x = long, y = lat, group = group), 
+               colour = 'gray', fill = 'lightgrey', alpha = 0.8
+               ) + 
+  geom_point(aes(x = lon, y = lat, colour = `Index\ncategory`), alpha = 0.7, size = 2) +
+  coord_map() + 
+  scale_colour_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(), 
+    axis.title.x = element_blank(),
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = c(0.9, 0.85)
+  ) +
+  ggtitle('Hybrid pMMI scores')
+```
+
+### Relationships with nutrients
+
+```{r fig.height = 4, fig.width = 8}
+evvar <- list(
+  varorg = c('Nitrogen_Total_mgPerL'), 
+  varnew = c('Total Nitrogen (mg/L)')
+)
+
+# sites and channel cls
+chcls <- indat %>% 
+  dplyr::select(id, chcls) %>% 
+  unique
+
+# new indices
+toplo <- evdat[, c('id', evvar$varorg)] %>% 
+  left_join(indat, ., by = 'id') %>% 
+  rename(
+    `Index Score` = scr,
+    `Channel Type` = chcls
+  ) %>% 
+  .[, c('id', 'ind', 'Channel Type', 'tax', 'thr', 'Index Score', evvar$varorg)] %>% 
+  filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`)) %>% 
+  filter(tax %in% 'Hybrid' & ind %in% 'pMMI')
+
+# base theme
+pbase <- theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(), 
+    axis.title.x = element_blank(), 
+    legend.position = c(0.8, 0.85)
+  )
+
+p1 <- ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+p2 <- ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+grid.arrange(p1, p2, ncol = 2, bottom = evvar$varnew[[1]])
+
+```
+
+
+### Complements with CSCI
+
+```{r, fig.height = 3, fig.width = 8}
+evvar <- list(
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'CondQR50'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', 'Pred. Cond.')
+)
+
+# combine index data, cram/csci data, and environmental data
+toplo <- indat %>% 
+  select(id, ind, tax, scr, thr, scrcat) %>% 
+  inner_join(ccdat, ., by = 'id') %>% 
+  inner_join(evdat[, c('id', evvar$varorg)], ., by = 'id') %>% 
+  mutate(
+    CSCI = cut(CSCI, breaks = c(-Inf, 0.79, Inf), labels = c('Lo', 'Hi')), 
+    prcond = SpecificConductivity_uSPercm / CondQR50
+    ) %>% 
+  unite('bug_alg', CSCI, scrcat, sep = ' / ') %>% 
+  filter(tax %in% 'Hybrid' & ind %in% 'pMMI')
+
+pcrm <- ggplot(toplo, aes(x = bug_alg, y = CRAM)) + 
+  geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) + 
+  geom_jitter(alpha = 0.1, size = 1) + 
+  theme_bw() + 
+  theme(axis.title.x = element_blank())
+pnut <- ggplot(toplo, aes(x = bug_alg, y = Nitrogen_Total_mgPerL)) + 
+  geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) +
+  geom_jitter(alpha = 0.1, size = 1) + 
+  theme_bw() + 
+  theme(axis.title.x = element_blank()) + 
+  scale_y_log10('Total Nitrogen (mg/l)')
+pcnd <- ggplot(toplo, aes(x = bug_alg, y = prcond)) + 
+  geom_boxplot(fill = 'lightgrey', alpha = 0.8, outlier.colour = NA) +
+  geom_jitter(alpha = 0.1, size = 1) + 
+  theme_bw() + 
+  theme(axis.title.x = element_blank()) +
+  scale_y_log10('Conductivity (obs/pred)') + 
+  coord_cartesian(ylim = c(0.1, 20))
+
+grid.arrange(pcrm, pnut, pcnd, ncol = 3, bottom = 'CSCI / ASCI', top = 'CSCI and ASCI Hybrid pMMI')
+```
