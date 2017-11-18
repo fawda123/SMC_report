@@ -1,5 +1,5 @@
 ---
-title: "Figures2"
+title: "Figures, hybrid pmmi"
 author: "Marcus Beck"
 output: 
   html_document:
