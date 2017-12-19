@@ -40,7 +40,7 @@ hydro_lu <- hydro %>%
   gather('var', 'val', Vertical, Lateral) %>% 
   dplyr::select(StationCode, SampleDate, SMC_LU, var, val) %>%
   mutate(
-    lu = fct_recode(SMC_LU, ag = 'Agricultural', urban = 'Urban', other = 'NR', other = 'Open', other = 'SMC_out')
+    lu = fct_recode(SMC_LU, ag = 'Agricultural', urban = 'Urban', open = 'NR', open = 'Open', open = 'SMC_out')
   ) %>% 
   group_by(var, val, lu) %>% 
   summarise(
@@ -58,7 +58,7 @@ hydro_lu <- hydro %>%
 
 toplo <- rbind(hydro_all, hydro_lu) %>% 
   mutate(
-    lu = factor(lu, levels = c('all', 'ag', 'urban', 'other'), labels = c('All', 'Ag', 'Urban', 'Other'))
+    lu = factor(lu, levels = c('all', 'ag', 'urban', 'open'), labels = c('All', 'Ag', 'Urban', 'Open'))
   )
 
 cols <- RColorBrewer::brewer.pal(4, 'RdYlGn') %>% rev
@@ -113,13 +113,18 @@ toplo <- hydro %>%
   mutate(yr = year(SampleDate)) %>% 
   left_join(stat, by = 'StationCode')
 
+# subset only one facet
+toplo <- toplo %>% 
+  filter(var %in% 'Lateral') %>% 
+  rename(`Lateral\nsusceptibility` = Susceptibility)
+
 p <- ggplot(toplo) + 
   geom_polygon(data = shd, 
                aes(x = long, y = lat, group = group), 
                colour = 'gray', fill = 'lightgrey', alpha = 0.8
   ) + 
-  geom_point(aes(x = Longitude, y = Latitude, fill = Susceptibility), colour = 'black', pch = 21, alpha = 0.7, size = 2) +
-  facet_grid(yr ~ var) + 
+  geom_point(aes(x = Longitude, y = Latitude, fill = `Lateral\nsusceptibility`), colour = 'black', pch = 21, alpha = 0.7, size = 2) +
+  # facet_grid(yr ~ var) + 
   coord_map() + 
   scale_fill_manual(values = cols) +
   theme_minimal(base_size = 14) +
