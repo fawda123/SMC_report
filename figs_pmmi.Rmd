@@ -44,7 +44,7 @@ ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
 
 ### Map
 
-```{r mapall, fig.height = 5, fig.width = 6}
+```{r mapall, fig.height = 4, fig.width = 10}
 # add shc shed names to fortified shapefile
 key <- sheds@data %>% 
   rownames_to_column('id') %>% 
@@ -57,7 +57,7 @@ toplo <- indat %>%
   rename(`Index\ncategory` = scrcat) %>% 
   filter(ind %in% 'pMMI' & tax %in% 'Hybrid')
 
-ggplot(toplo) + 
+p1 <- ggplot(toplo) + 
   geom_polygon(data = shd, 
                aes(x = long, y = lat, group = group), 
                colour = 'gray', fill = 'lightgrey', alpha = 0.8
@@ -71,13 +71,56 @@ ggplot(toplo) +
     axis.title.x = element_blank(),
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
     legend.position = c(0.9, 0.85)
-  ) +
-  ggtitle('Hybrid pMMI scores')
+  )
+
+# add shc shed names to fortified shapefile
+key <- sheds@data %>% 
+  rownames_to_column('id') %>% 
+  dplyr::select(id, SMC_Name)
+shd <- tidy(sheds) %>% 
+  left_join(key, by = 'id')
+
+# get percent sites in each category by type
+# merge with fortified sheds
+toplo <- indat %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  group_by(SMC_Name, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  group_by(SMC_Name) %>% 
+  nest %>% 
+  mutate(
+    ntot = map(data, ~ sum(.x$n) %>% rep(2))
+    ) %>% 
+  unnest %>% 
+  ungroup %>% 
+  mutate(n = 100 * n / ntot) %>% 
+  filter(scrcat %in% 'Hi') %>%
+  left_join(shd, ., by = 'SMC_Name') %>% 
+  rename(`% sites above\nthreshold` = n)
+
+p2 <- ggplot() + 
+  geom_polygon(data = toplo, 
+               aes(x = long, y = lat, fill = `% sites above\nthreshold`, group = group), 
+               colour = 'gray', alpha = 0.8
+               ) +
+  coord_map() + 
+  scale_fill_gradientn(colors = rev(tycol)) + 
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(), 
+    axis.title.x = element_blank(),
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    legend.position = c(0.15, 0.25)
+  )
+grid.arrange(p1, p2, ncol = 2)
 ```
+
 
 ### Relationships with nutrients
 
-```{r fig.height = 4, fig.width = 8}
+```{r fig.height = 3, fig.width = 7}
 evvar <- list(
   varorg = c('Nitrogen_Total_mgPerL'), 
   varnew = c('Total Nitrogen (mg/L)')
@@ -131,7 +174,6 @@ grid.arrange(p1, p2, ncol = 2, bottom = evvar$varnew[[1]])
 
 ```
 
-
 ### Complements with CSCI
 
 ```{r, fig.height = 3, fig.width = 8}
@@ -172,4 +214,431 @@ pcnd <- ggplot(toplo, aes(x = bug_alg, y = prcond)) +
   coord_cartesian(ylim = c(0.1, 20))
 
 grid.arrange(pcrm, pnut, pcnd, ncol = 3, bottom = 'CSCI / ASCI', top = 'CSCI and ASCI Hybrid pMMI')
+```
+
+### Score distributions
+
+```{r box, fig.height = 3, fig.width = 5}
+# all index data
+toplo <- indat %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid')
+
+ggplot(toplo, aes(x = type, y = scr)) + 
+  geom_boxplot(outlier.size = 1, aes(fill = type), alpha = 0.7) + 
+  geom_hline(aes(yintercept = thr)) +
+  scale_fill_manual(values = ctcol) +
+  scale_y_continuous('Index Score') + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    legend.position = 'none'
+  ) 
+```
+
+```{r scrchcls, fig.height = 3, fig.width = 5}
+toplo <- indat %>% 
+  dplyr::select(chcls, scr, ind, thr, tax) %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  na.omit
+
+ggplot(toplo, aes(x = chcls, y = scr, fill = chcls)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_hline(aes(yintercept = thr)) +
+  scale_y_continuous('Index Score') +
+  scale_fill_manual(values = ptcol[c(3, 1, 2)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    legend.position = 'none'
+  ) 
+```
+
+```{r bar, fig.height = 3, fig.width = 3}
+# colors
+colfun <- rev(tycol) %>% 
+  colorRampPalette
+
+# format for plots
+toplo <- indat %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  group_by(SMC_Name) %>% 
+  summarise(
+    mnval = mean(scr), 
+    loval = confint(lm(scr ~ 1))[1],
+    hival = confint(lm(scr ~ 1))[2]
+  ) %>% 
+  ungroup %>% 
+  mutate(
+    cols = colfun(length(mnval))[rank(mnval)]
+  ) %>% 
+  arrange(mnval) %>% 
+  mutate(SMC_Name = factor(SMC_Name, levels = SMC_Name))
+  
+p <- ggplot(toplo, aes(x = SMC_Name, y = mnval)) + 
+  geom_bar(stat = 'identity', fill = toplo$cols, col = 'grey') +
+  geom_errorbar(aes(ymin = loval, ymax = hival), width = 0.2) +
+  scale_y_continuous('Index Score', expand = c(0, 0), limits = c(0, 1.1)) + 
+  coord_flip() + 
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 7), 
+    axis.title.y = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'none', 
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()
+  )
+p
+
+```
+### Hi/lo distributions 
+
+```{r cattyp, fig.height = 5, fig.width = 9}
+# get percent sites in each category by type
+toplo <- indat %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  group_by(type, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  ungroup %>% 
+  rename(`Index\ncategory` = scrcat)
+  
+ggplot(toplo, aes(x = type, y = n, fill = `Index\ncategory`)) +
+  geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
+  scale_y_continuous('Proportion', expand = c(0, 0)) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  ) 
+```
+
+```{r catchcls, fig.height = 5, fig.width = 9}
+# get percent sites in each category by type
+toplo <- indat %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  group_by(chcls, ind, tax, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  ungroup %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  na.omit
+  
+ggplot(toplo, aes(x = chcls, y = n, fill = `Index\ncategory`)) +
+  geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
+  scale_y_continuous('Proportion', expand = c(0, 0)) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  ) 
+```
+
+```{r catshed, fig.height = 8, fig.width = 8}
+
+# get percent sites in each category by type
+toplo <- indat %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  group_by(SMC_Name, scrcat) %>% 
+  summarise(
+    n = length(scrcat)
+  ) %>% 
+  group_by(SMC_Name) %>% 
+  nest %>% 
+  mutate(
+    ntot = map(data, ~ sum(.x$n) %>% rep(2))
+    ) %>% 
+  unnest %>% 
+  ungroup %>% 
+  mutate(n = n / ntot) %>% 
+  rename(`Index\ncategory` = scrcat) %>% 
+  spread(`Index\ncategory`, n) %>% 
+  arrange(Hi) %>% 
+  mutate(SMC_Name = factor(SMC_Name, levels = SMC_Name)) %>% 
+  gather(`Index category`, 'n', Hi:Lo)
+
+p <- ggplot(toplo, aes(x = SMC_Name, y = n, fill = `Index category`)) + 
+  geom_bar(stat = 'identity',  position = position_stack(reverse = TRUE), colour = 'grey', alpha = 0.8, width = 0.75) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  scale_y_continuous('Proportion of stream sites', expand = c(0, 0)) + 
+  coord_flip() + 
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 7), 
+    axis.title.y = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()
+  )
+p  
+
+
+```
+
+### Relationships with environmental variables
+
+#### Scatterplots {.tabset .tabset-fade .tabset-pills}
+
+```{r setscat}
+evvar <- list(
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
+)
+
+# sites and channel cls
+chcls <- indat %>%
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  dplyr::select(id, chcls) %>% 
+  unique
+
+# old indices
+toplo_old <- evdat[, c('id', evvar$varorg)] %>% 
+  left_join(aldat, ., by = 'id') %>% 
+  inner_join(chcls, ., by = 'id') %>% 
+  rename(
+    `Index Score` = scr,
+    `Channel Type` = chcls
+  ) %>% 
+  .[, c('id', 'ind', 'Channel Type', 'Index Score', evvar$varorg)] %>% 
+  filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`)) %>% 
+  mutate(
+    ind = factor(ind, levels = c('D18', 'S2', 'H20'))
+  )
+
+# new indices
+toplo_new <- evdat[, c('id', evvar$varorg)] %>%
+  left_join(indat, ., by = 'id') %>% 
+  filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+  rename(
+    `Index Score` = scr,
+    `Channel Type` = chcls
+  ) %>% 
+  .[, c('id', 'ind', 'Channel Type', 'tax', 'thr', 'Index Score', evvar$varorg)] %>% 
+  filter(!`Channel Type` %in% 'All or partially earthen' & !is.na(`Channel Type`))
+
+# base theme
+pbase <- theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+##### Phosphorus
+```{r byphos, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Phosphorus (mg/L)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Phosphorus_as_P_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Phosphorus (mg/L)') +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+##### Nitrogen
+```{r bynitr, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+##### % Shading
+```{r byshad, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_x_continuous('% Shading') +
+  scale_y_continuous(expand = c(0, 0)) +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = XCDENMID, y = `Index Score`, colour = `Channel Type`)) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_x_continuous('% Shading') +
+  scale_y_continuous(expand = c(0, 0)) +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+##### % Sands and Fines
+```{r bysafn, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('% Sands and Fines') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = PCT_SAFN, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('% Sands and Fines') +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+##### Conductivity
+```{r bycondo, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Conductivity (uS/Cm)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = SpecificConductivity_uSPercm, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Conductivity (uS/Cm)') +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+##### Temperature
+```{r bytempo, fig.height = 8, fig.width = 8}
+pold <- ggplot(toplo_old, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  facet_wrap( ~ ind, ncol = 3) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Temperature (C)') +
+  pbase
+
+pnew <- ggplot(toplo_new, aes(x = Temperature_Deg_C, y = `Index Score`, colour = `Channel Type`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_hline(aes(yintercept = thr), linetype = 'dashed') +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous('Temperature (C)') +
+  pbase
+
+grid.arrange(pold, pnew, ncol = 1, heights = c(0.6, 1))
+```
+
+### Comparison with existing algal indices {.tabset .tabset-fade .tabset-pills}
+
+#### S2
+```{r cmps2, fig.height = 5, fig.width = 7}
+
+alind <- c('S2', 'H20', 'D18')
+taxs <- c('Hybrid')
+lms <- c(0, 1.6)
+
+for(i in seq_along(alind)){
+  
+  togrb <- alind[i]
+  txgrb <- taxs
+  xlab <- paste(togrb, 'Index Score')
+
+  toplo <- aldat[aldat$ind %in% togrb, ] %>%
+    rename(cmp = scr) %>% 
+    dplyr::select(-ind) %>% 
+    left_join(indat, ., by = 'id') %>% 
+    filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
+    filter(tax %in% txgrb) %>% 
+    mutate(scrdf = scr - cmp)
+  
+  pA <- ggplot(toplo, aes(x = cmp, y = scr)) + 
+    geom_point(alpha = 0.6, size = 1) +
+    geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_wrap( ~ ind, ncol = 1) +
+    scale_colour_manual(values = ptcol) +
+    scale_y_continuous('New Index Score', limits = lms) +
+    scale_x_continuous(limits = lms) +
+    pbase +
+    theme(axis.title.x = element_blank())
+  
+  pB <- ggplot(toplo, aes(x = cmp, y = scrdf)) + 
+    geom_point(alpha = 0.6, size = 1) +
+    geom_hline(yintercept = 0, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_wrap( ~ ind, ncol = 1) +
+    scale_colour_manual(values = ptcol) +
+    scale_y_continuous('New - Old Index Score') +
+    scale_x_continuous(limits = lms) +
+    pbase +
+    theme(axis.title.x = element_blank())
+  
+  assign(paste0('pA_', togrb), pA)
+  assign(paste0('pB_', togrb), pB)
+  
+}
+
+grid.arrange(pA_S2, pB_S2, ncol = 2, bottom = 'S2 Index Score')
+```
+
+#### H20
+```{r cmph20, fig.height = 5, fig.width = 7}
+grid.arrange(pA_H20, pB_H20, ncol = 2, bottom = 'H20 Index Score')
+```
+
+#### D18
+```{r cmpd18, fig.height = 5, fig.width = 7}
+grid.arrange(pA_D18, pB_D18, ncol = 2, bottom = 'D18 Index Score')
 ```
