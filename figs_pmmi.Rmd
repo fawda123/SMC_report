@@ -216,6 +216,44 @@ pcnd <- ggplot(toplo, aes(x = bug_alg, y = prcond)) +
 grid.arrange(pcrm, pnut, pcnd, ncol = 3, bottom = 'CSCI / ASCI', top = 'CSCI and ASCI Hybrid pMMI')
 ```
 
+```{r clscmp, fig.height = 3, fig.width = 6}
+evvar <- list(
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'CondQR50'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', 'Pred. Cond.')
+)
+
+thrsh <- data.frame(ind = c('ASCI', 'CSCI'), thr = c(0.78, 0.79), stringsAsFactors = F)
+
+toplo <- indat %>% 
+  select(id, ind, tax, scr, chcls) %>% 
+  inner_join(ccdat, ., by = 'id') %>% 
+  rename(ASCI = scr) %>% 
+  filter(tax %in% 'Hybrid' & ind %in% 'pMMI') %>% 
+  select(-ind, -tax, -CRAM) %>% 
+  gather('ind', 'scr', -chcls, -id) %>% 
+  na.omit %>% 
+  left_join(thrsh, by = c('ind')) %>% 
+  mutate(scrcat = ifelse(scr < thr, 'lo', 'hi')) %>% 
+  group_by(chcls, ind, scrcat) %>% 
+  summarise(n = length(scrcat)) %>% 
+  ungroup %>% 
+  rename(`Index\ncategory` = scrcat)
+
+ggplot(toplo, aes(x = chcls, y = n, fill = `Index\ncategory`)) +
+  geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
+  facet_grid(~ ind) + 
+  scale_y_continuous('Proportion', expand = c(0, 0)) +
+  scale_fill_manual(values = ctcol[c(1, 3)]) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.title.x = element_blank(), 
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  ) 
+```
+
 ### Score distributions
 
 ```{r box, fig.height = 3, fig.width = 5}
