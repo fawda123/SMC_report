@@ -6,9 +6,11 @@ Contents for figures to SMC 2016 regional stream survey report: [figs](https://f
 
 All file in `data` created in `R/dat_proc.R`, unless specified otherwise.
 
+* `allscr.RData` All ASCI scores for the state, from ASCI repo
 * `aldat.RData` Scores for existing algal indices. 
 * `ccdat.RData` CSCI and CRAM scores for matched reaches in `indat.RData`
 * `evdat.RData` Environmental data, clipped by `sheds.RData`
 * `indat.RData` Combined OE and MMI data for SMC watersheds
 * `psa.RData` Shapefile of Caliofrnia ecoregions
 * `sheds.RData` shapefile of SMC watersheds
+* `sitcat.RData` site classifications (reference, etc.) for ASCI, from ASCI repo
