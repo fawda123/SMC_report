@@ -11,7 +11,7 @@ self_contained: yes
 
 ```{r, echo = F}
 library(knitr)
-opts_chunk$set(warning = FALSE, message = FALSE, fig.path = 'figs_pmmi/')
+opts_chunk$set(warning = FALSE, message = FALSE, fig.path = 'figs_pmmi/', dev.args = list(bg = 'transparent'))
 ```
 
 ```{r setup}
@@ -129,7 +129,6 @@ p2 <- ggplot(scrsvnat, aes(x = SITE_ELEV, y = scr)) +
 
 grid.arrange(p1, p2, ncol = 2, left = 'Index score')
 ```
-
 
 ### Map
 
@@ -302,3 +301,69 @@ ggplot(toplo, aes(x = chcls, y = scr)) +
   ) 
 ```
 
+### Relationships with old indices
+
+```{r oldcmp, fig.height = 3, fig.width = 8}
+data(aldat)
+data(indat)
+data(evdat)
+
+evvar <- list(
+  varorg = c('Nitrogen_Total_mgPerL', 'Temperature_Deg_C'), 
+  varnew = c('Total Nitrogen (mg/L)', 'Temperature (C)')
+)
+
+evdat <- evdat[, c('id', evvar$varorg)]
+
+# base theme
+pbase <- theme(
+    panel.background = element_rect(fill = "white", colour = "white"),
+    plot.background = element_rect(fill = "transparent", colour = NA),
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+
+xlab <- 'H20 Index Score'
+lms <- c(0, 1.6)
+
+toplo <- aldat[aldat$ind %in% 'H20', ] %>% 
+  rename(cmp = scr) %>% 
+  dplyr::select(-ind) %>% 
+  left_join(indat, ., by = 'id') %>% 
+  filter(tax %in% 'Hybrid' & ind %in% 'pMMI') %>% 
+  left_join(evdat, by = 'id') %>% 
+  mutate(scrdf = scr - cmp) %>% 
+  filter(!is.na(scrdf)) %>% 
+  filter(Temperature_Deg_C < 1000)
+
+p1 <- ggplot(toplo, aes(x = cmp, y = scr)) + 
+  geom_point(alpha = 0.6, size = 1) +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  # geom_smooth(method = 'lm', se = T) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous('ASCI Score', limits = lms) +
+  scale_x_continuous('H20 Index score', limits = lms) +
+  pbase
+
+p2 <- ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = scrdf)) + 
+  geom_point(alpha = 0.6, size = 1) +
+  geom_hline(yintercept = 0, linetype = 'dashed') +
+  geom_smooth(method = 'lm', se = T) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous('ASCI - H20 Score') +
+  scale_x_log10('Total Nitrogen (mg/L)') +
+  pbase
+
+p3 <- ggplot(toplo, aes(x = Temperature_Deg_C, y = scrdf)) + 
+  geom_point(alpha = 0.6, size = 1) +
+  geom_hline(yintercept = 0, linetype = 'dashed') +
+  geom_smooth(method = 'lm', se = T) +
+  scale_colour_manual(values = ptcol) +
+  scale_y_continuous('ASCI - H20 Score') +
+  scale_x_continuous('Temperature (C)') +
+  pbase
+
+grid.arrange(p1, p2, p3, ncol = 3)
+```
