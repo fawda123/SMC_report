@@ -62,7 +62,10 @@ psascrs <- list.files('ignore', pattern = '^hybrid.*metrics.*\\.csv$', full.name
   left_join(sitcat, by = 'SampleID') %>% 
   select(-cls) %>% 
   filter(!is.na(psa) & !psa %in% 'Central_Valley') %>% 
-  mutate(psa = gsub('_', ' ', psa))
+  mutate(
+    psa = gsub('_', ' ', psa), 
+    psa = gsub('Sierras', 'Sierra Nevada', psa)
+    )
   
 pthm <- theme(
     axis.title.x = element_blank(), 
@@ -81,7 +84,7 @@ ggplot(psascrs, aes(x = psa, y = scr)) +
 
 ```
 
-```{r natgr, fig.height = 3, fig.width = 6}
+```{r natgr, fig.height = 3, fig.width = 3}
 # scores and natural gradients
 scrsvnat <- list.files('ignore', pattern = '^hybrid.*metrics.*\\.csv$', full.names = TRUE) %>% 
   read.csv(., stringsAsFactors = FALSE) %>% 
@@ -104,8 +107,7 @@ pbase <- theme_minimal() +
   theme(
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
     panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank(), 
-    axis.title.y = element_blank(), 
+    panel.grid.major = element_blank(),
     legend.position = c(0.8, 0.85)
   )
 
@@ -114,20 +116,10 @@ p1 <- ggplot(scrsvnat, aes(x = AREA_SQKM, y = scr)) +
   geom_smooth(method = 'lm') +
   geom_hline(yintercept = 0.78, linetype = 'dashed', col = 'red', size = 1) +
   theme_bw() + 
-  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous('Index score', expand = c(0, 0)) +
   scale_x_log10('Watershed area (square km)') +
   pbase
-
-p2 <- ggplot(scrsvnat, aes(x = SITE_ELEV, y = scr)) +
-  geom_point(alpha = 0.7, size = 1.5) +
-  geom_hline(yintercept = 0.78, linetype = 'dashed', col = 'red', size = 1) +
-  geom_smooth(method = 'lm') +
-  theme_bw() + 
-  scale_y_continuous(expand = c(0, 0)) +
-  scale_x_continuous('Elevation (m)') + #, limits = c(100, 2000)) +
-  pbase 
-
-grid.arrange(p1, p2, ncol = 2, left = 'Index score')
+p1
 ```
 
 ### Map
@@ -161,10 +153,10 @@ toexp <- indat %>%
 
 ### Relationships with environmental variables
 
-```{r fig.height = 3, fig.width = 7}
+```{r fig.height = 3, fig.width = 5}
 evvar <- list(
-  varorg = c('Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'XCDENMID'), 
-  varnew = c('Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', '% Shading')
+  varorg = c('Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'PCT_SAFN'), 
+  varnew = c('Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', '% Sand and Fines')
 )
 
 # new indices
@@ -195,32 +187,23 @@ p1 <- ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = `Index Score`)) +
   scale_x_log10('Total Nitrogen (mg/L)') +
   pbase
 
-p2 <- ggplot(toplo, aes(x = SpecificConductivity_uSPercm, y = `Index Score`)) +
+p2 <- ggplot(toplo, aes(x = PCT_SAFN, y = `Index Score`)) +
   geom_point(alpha = 0.7, size = 1.5) +
   geom_smooth(method = 'lm') +
   geom_hline(aes(yintercept = thr), linetype = 'dashed', col = 'red', size = 1) +
   scale_colour_manual(values = ptcol) +
   scale_y_continuous(expand = c(0, 0)) +
-  scale_x_log10('Conductivity (mS/cm)', limits = c(100, 10000)) +
+  scale_x_continuous('% Sand and Fines') +
   pbase
 
-p3 <- ggplot(toplo, aes(x = XCDENMID, y = `Index Score`)) +
-  geom_point(alpha = 0.7, size = 1.5) +
-  geom_smooth(method = 'lm') +
-  geom_hline(aes(yintercept = thr), linetype = 'dashed', col = 'red', size = 1) +
-  scale_colour_manual(values = ptcol) +
-  scale_y_continuous(expand = c(0, 0)) +
-  scale_x_continuous('% Shading') +
-  pbase
-
-grid.arrange(p1, p2, p3, ncol = 3, left = 'ASCI Score')
+grid.arrange(p1, p2, ncol = 2, left = 'ASCI Score')
 
 ```
 
-```{r, fig.height = 3, fig.width = 8}
+```{r, fig.height = 3, fig.width = 6}
 evvar <- list(
-  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'SpecificConductivity_uSPercm', 'CondQR50'), 
-  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', 'Conductivity (mS/cm)', 'Pred. Cond.')
+  varorg = c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL'), 
+  varnew = c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)')
 )
 
 # combine index data, cram/csci data, and environmental data
@@ -229,8 +212,7 @@ toplo <- indat %>%
   inner_join(ccdat, ., by = 'id') %>% 
   inner_join(evdat[, c('id', evvar$varorg)], ., by = 'id') %>% 
   mutate(
-    CSCI = cut(CSCI, breaks = c(-Inf, 0.79, Inf), labels = c('Lo', 'Hi')), 
-    prcond = SpecificConductivity_uSPercm / CondQR50
+    CSCI = cut(CSCI, breaks = c(-Inf, 0.79, Inf), labels = c('Lo', 'Hi'))
     ) %>% 
   unite('bug_alg', CSCI, scrcat, sep = ' / ') %>% 
   filter(tax %in% 'Hybrid' & ind %in% 'pMMI')
@@ -255,45 +237,36 @@ pnut <- ggplot(toplo, aes(x = bug_alg, y = Nitrogen_Total_mgPerL)) +
   theme_bw() + 
   pthm +
   scale_y_log10('Total Nitrogen (mg/l)')
-pcnd <- ggplot(toplo, aes(x = bug_alg, y = prcond)) + 
-  # geom_point(aes(y = prcond), size = 2, alpha = 0.7) +
-  geom_boxplot(fill = 'lightgrey') +
-  theme_bw() + 
-  pthm +
-  scale_y_log10('Conductivity (obs/pred)') + 
-  coord_cartesian(ylim = c(0.1, 20))
 
-grid.arrange(pcrm, pnut, pcnd, ncol = 3, bottom = 'CSCI / ASCI score categories')
+grid.arrange(pnut, pcrm, ncol = 2, bottom = 'CSCI / ASCI score categories')
 ```
 
 ### Complements with CSCI
 
-```{r clscmp, fig.height = 3, fig.width = 6}
+```{r clscmp, fig.height = 3, fig.width = 3}
 thrsh <- data.frame(ind = c('ASCI', 'CSCI'), thr = c(0.78, 0.79), stringsAsFactors = F)
 
 toplo <- indat %>% 
   select(id, ind, tax, scr, chcls) %>% 
   inner_join(ccdat, ., by = 'id') %>% 
   rename(ASCI = scr) %>% 
-  filter(tax %in% 'Hybrid' & ind %in% 'pMMI' & chcls %in% c('Hardened', 'Natural')) %>% 
-  mutate(chcls = factor(chcls, levels = c('Natural', 'Hardened'))) %>% 
+  filter(tax %in% 'Hybrid' & ind %in% 'pMMI' & chcls %in% c('Hardened')) %>% 
+  mutate(chcls = factor(chcls, levels = c('Hardened'))) %>% 
   select(-ind, -tax, -CRAM) %>% 
   gather('ind', 'scr', -chcls, -id) %>% 
   na.omit %>% 
   left_join(thrsh, by = c('ind'))
 
-pts <- toplo #%>% 
-  # filter(scr > thr & chcls %in% 'Hardened')
-
 ggplot(toplo, aes(x = chcls, y = scr)) +
-  geom_point(data = pts, size = 2, alpha = 0.7) + 
   geom_boxplot(fill = 'lightgrey', width = 0.5) +
-  facet_grid(~ ind) + 
+  facet_wrap(~ ind, strip.position = 'bottom') + 
   geom_hline(aes(yintercept = thr), linetype = 'dashed', col = 'red', size = 1) +
   scale_y_continuous('Index scores') +
   theme_bw() +
   theme(
     axis.title.x = element_blank(), 
+    axis.text.x = element_blank(), 
+    axis.ticks.x = element_blank(),
     panel.border = element_blank(), 
     strip.background = element_blank(),
     panel.grid.major = element_blank(),
@@ -303,7 +276,7 @@ ggplot(toplo, aes(x = chcls, y = scr)) +
 
 ### Relationships with old indices
 
-```{r oldcmp, fig.height = 3, fig.width = 8}
+```{r oldcmp, fig.height = 3, fig.width = 3}
 data(aldat)
 data(indat)
 data(evdat)
@@ -320,13 +293,16 @@ pbase <- theme(
     panel.background = element_rect(fill = "white", colour = "white"),
     plot.background = element_rect(fill = "transparent", colour = NA),
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
-    legend.position = 'top', 
     panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank()
+    panel.grid.major = element_blank(), 
+    legend.title = element_blank(), 
+    legend.position = 'none'
   )
 
 xlab <- 'H20 Index Score'
 lms <- c(0, 1.6)
+
+# H20 threshold is 63.5, divided by reference median of 75, 0.85
 
 toplo <- aldat[aldat$ind %in% 'H20', ] %>% 
   rename(cmp = scr) %>% 
@@ -336,34 +312,24 @@ toplo <- aldat[aldat$ind %in% 'H20', ] %>%
   left_join(evdat, by = 'id') %>% 
   mutate(scrdf = scr - cmp) %>% 
   filter(!is.na(scrdf)) %>% 
-  filter(Temperature_Deg_C < 1000)
-
-p1 <- ggplot(toplo, aes(x = cmp, y = scr)) + 
+  filter(Temperature_Deg_C < 1000) %>% 
+  mutate(
+    cmpcat = ifelse(cmp > 0.85, 'Hi', 'Lo')
+  ) %>% 
+  unite('cmbcat', scrcat, cmpcat, sep = '/', remove = F) %>% 
+  mutate(
+    agrm = fct_collapse(cmbcat, Agreement = c('Hi/Hi', 'Lo/Lo'), Disagreement = c('Hi/Lo', 'Lo/Hi'))
+  )
+  
+p1 <- ggplot(toplo, aes(x = cmp, y = scr, colour = agrm)) + 
   geom_point(alpha = 0.6, size = 1) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  geom_hline(yintercept = 0.78, linetype = 'dashed', colour = 'red', size = 1) +
+  geom_vline(xintercept = 0.85, linetype = 'dashed', colour = 'red', size = 1) +
   # geom_smooth(method = 'lm', se = T) +
-  scale_colour_manual(values = ptcol) +
+  scale_colour_manual(values = ptcol[c(2, 1)]) +
   scale_y_continuous('ASCI Score', limits = lms) +
   scale_x_continuous('H20 Index score', limits = lms) +
   pbase
-
-p2 <- ggplot(toplo, aes(x = Nitrogen_Total_mgPerL, y = scrdf)) + 
-  geom_point(alpha = 0.6, size = 1) +
-  geom_hline(yintercept = 0, linetype = 'dashed') +
-  geom_smooth(method = 'lm', se = T) +
-  scale_colour_manual(values = ptcol) +
-  scale_y_continuous('ASCI - H20 Score') +
-  scale_x_log10('Total Nitrogen (mg/L)') +
-  pbase
-
-p3 <- ggplot(toplo, aes(x = Temperature_Deg_C, y = scrdf)) + 
-  geom_point(alpha = 0.6, size = 1) +
-  geom_hline(yintercept = 0, linetype = 'dashed') +
-  geom_smooth(method = 'lm', se = T) +
-  scale_colour_manual(values = ptcol) +
-  scale_y_continuous('ASCI - H20 Score') +
-  scale_x_continuous('Temperature (C)') +
-  pbase
-
-grid.arrange(p1, p2, p3, ncol = 3)
+p1
 ```
