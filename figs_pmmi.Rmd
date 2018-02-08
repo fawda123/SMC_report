@@ -146,10 +146,13 @@ thrsh <- list.files('ignore', pattern = '^hybrid.*metrics.*\\.csv$', full.names 
 toexp <- indat %>% 
   rename(`Index\ncategory` = scrcat) %>% 
   filter(ind %in% 'pMMI' & tax %in% 'Hybrid') %>% 
-  mutate(scrcat = cut(scr, breaks = c(-Inf, thrsh, Inf), labels = c('Very likely altered', 'Likely altered', 'Possibly altered', 'Likely intact')))
+  mutate(
+    scrcut = cut(scr, breaks = c(-Inf, thrsh, Inf),
+    
+            labels = c('Very likely altered', 'Likely altered', 'Possibly altered', 'Likely intact')))
 # write.csv(toexp, file = 'ignore/cutoffdat.csv', row.names = F)
 ```
-![](figs_pmmi/asci_map.png)
+![](figs_pmmi/asci_map.jpg)
 
 ### Relationships with environmental variables
 
